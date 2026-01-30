@@ -1,77 +1,62 @@
 name: PrHran Auto Scraper
+
 on:
   schedule:
-    - cron: '0 1 * * 1'  # Ponedeljek 1:00 UTC
-    - cron: '0 1 * * 4'  # Četrtek 1:00 UTC
-  workflow_dispatch:
+    # Ponedeljek in Četrtek ob 02:00 CET (01:00 UTC)
+    - cron: '0 1 * * 1'  # Ponedeljek
+    - cron: '0 1 * * 4'  # Četrtek
+  workflow_dispatch:  # Ročno proženje
 
 jobs:
-  scrape-and-deploy:
+  scrape-all-stores:
     runs-on: ubuntu-latest
-    timeout-minutes: 420  # 7 ur
-    
+    timeout-minutes: 120  # 2 uri max
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install dependencies
+          cache: 'pip'
+          cache-dependency-path: 'scraper/requirements.txt'
+
+      - name: Install Python dependencies
         run: |
-          pip install playwright numpy pandas
+          cd scraper
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: |
           playwright install chromium
-          
-      - name: Scrape SPAR
+          playwright install-deps chromium
+
+      - name: Run Full Scrape with Product Matching
+        env:
+          CI: true
+          CONVEX_URL: ${{ secrets.CONVEX_URL }}
+          PRHRAN_INGEST_TOKEN: ${{ secrets.PRHRAN_INGEST_TOKEN }}
         run: |
           cd scraper
-          python stores/spar.py --full-scrape
-          
-      - name: Scrape MERCATOR  
-        run: |
-          cd scraper
-          python stores/mercator.py --brskaj
-          
-      - name: Scrape TUS
-        run: |
-          cd scraper
-          python tus_final_all.py
-          
-      - name: Process and Group Products
-        run: |
-          cd scraper
-          python processor.py --group --validate --select-images
-          
-      - name: Update Database
-        run: |
-          cd scraper
-          python database_sync.py --update-prices --dedup
-          
-      - name: Deploy to Production
-        run: |
-          cd scraper
-          python deploy.py --production --auto-commit
-          
-      - name: Clean Test Products
-        run: |
-          cd scraper
-          python cleanup.py --remove-test-products
-          
-      - name: Validate Results
-        run: |
-          cd scraper
-          python validate_all.py --check-prices --check-duplicates
-          
-      - name: Notify Success
+          python full_scrape_with_matching.py
+
+      - name: Upload scraped data as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraped-products-${{ github.run_id }}
+          path: scraper/output/
+          retention-days: 7
+
+      - name: Summary
         if: success()
         run: |
-          echo "✅ PrHran scraping completed successfully!"
-          echo "📊 All stores scraped and deployed"
-          
-      - name: Notify Failure
-        if: failure()
-        run: |
-          echo "❌ PrHran scraping failed!"
-          echo "🔧 Check logs and retry"
+          echo "## PrHran Scraping Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Scraping completed at $(date)" >> $GITHUB_STEP_SUMMARY
+          if [ -f scraper/output/master_products.json ]; then
+            TOTAL=$(python -c "import json; print(len(json.load(open('scraper/output/master_products.json'))))")
+            echo "Total products: $TOTAL" >> $GITHUB_STEP_SUMMARY
+          fi
