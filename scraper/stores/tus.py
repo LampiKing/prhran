@@ -17,6 +17,7 @@ BULLETPROOF FEATURES:
 - Anti-detection
 - Progress saving
 """
+
 import re
 import time
 from typing import Optional, List
@@ -35,18 +36,39 @@ class TusScraper(BulletproofScraper):
     # DIREKTNI URL-ji za kategorije - iz sitemap.xml
     # Format: (ime_kategorije, URL)
     CATEGORY_URLS = [
-        ("Sadje in zelenjava", "https://hitrinakup.com/kategorije/Sadje%20in%20zelenjava"),
-        ("Meso, delikatesa in ribe", "https://hitrinakup.com/kategorije/Meso,%20delikatesa%20in%20ribe"),
-        ("Hlajeni in mlečni izdelki", "https://hitrinakup.com/kategorije/Hlajeni%20in%20mle%C4%8Dni%20izdelki"),
-        ("Kruh in pekovski izdelki", "https://hitrinakup.com/kategorije/Kruh%20in%20pekovski%20izdelki"),
+        (
+            "Sadje in zelenjava",
+            "https://hitrinakup.com/kategorije/Sadje%20in%20zelenjava",
+        ),
+        (
+            "Meso, delikatesa in ribe",
+            "https://hitrinakup.com/kategorije/Meso,%20delikatesa%20in%20ribe",
+        ),
+        (
+            "Hlajeni in mlečni izdelki",
+            "https://hitrinakup.com/kategorije/Hlajeni%20in%20mle%C4%8Dni%20izdelki",
+        ),
+        (
+            "Kruh in pekovski izdelki",
+            "https://hitrinakup.com/kategorije/Kruh%20in%20pekovski%20izdelki",
+        ),
         ("Zamrznjeno", "https://hitrinakup.com/kategorije/Zamrznjeno"),
         ("Shramba", "https://hitrinakup.com/kategorije/Shramba"),
-        ("Alkoholne pijače", "https://hitrinakup.com/kategorije/Alkoholne%20pija%C4%8De"),
-        ("Brezalkoholne pijače", "https://hitrinakup.com/kategorije/Brezalkoholne%20pija%C4%8De"),
+        (
+            "Alkoholne pijače",
+            "https://hitrinakup.com/kategorije/Alkoholne%20pija%C4%8De",
+        ),
+        (
+            "Brezalkoholne pijače",
+            "https://hitrinakup.com/kategorije/Brezalkoholne%20pija%C4%8De",
+        ),
         ("Sladko in slano", "https://hitrinakup.com/kategorije/Sladko%20in%20slano"),
         ("Osebna nega", "https://hitrinakup.com/kategorije/Osebna%20nega"),
         ("Dom", "https://hitrinakup.com/kategorije/Dom"),
-        ("Dojenčki in otroci", "https://hitrinakup.com/kategorije/Dojen%C4%8Dki%20in%20otroci"),
+        (
+            "Dojenčki in otroci",
+            "https://hitrinakup.com/kategorije/Dojen%C4%8Dki%20in%20otroci",
+        ),
         ("Male živali", "https://hitrinakup.com/kategorije/Male%20%C5%BEivali"),
         ("Mednarodna hrana", "https://hitrinakup.com/kategorije/Mednarodna%20hrana"),
     ]
@@ -62,7 +84,7 @@ class TusScraper(BulletproofScraper):
         ("Pecivo", "Kruh in pecivo"),
     ]
 
-    # TUŠ SPECIFIČNI selektorji (iz HTML inspekcije)
+    # TUŠ SPECIFIČNI selektorji - MAKSIMALNA POKRITOST
     PRODUCT_SELECTORS = [
         # Primarni - HorizontalScrollingItems
         '[class*="itemCardWrapper"]',
@@ -70,38 +92,115 @@ class TusScraper(BulletproofScraper):
         # Fallback
         '[class*="ItemCard"]',
         '[class*="itemCard"]',
+        '[class*="ProductCard"]',
+        '[class*="product-card"]',
+        # Linki na izdelke
         'a[href*="/izdelki/"]',
+        'a[href*="/product/"]',
+        # Grid elementi
+        '[class*="grid"] > div',
+        '[class*="flex"] > div',
+        ".grid-item",
+        # Generic
+        '[class*="card"]',
+        '[class*="item"]',
+        '[class*="product"]',
+        'article[class*="product"]',
+        'div[class*="item"]',
+        # Ultimate fallback
+        'li[class*="item"]',
+        'div[class*="box"]',
+        "[data-product]",
     ]
 
-    # TUŠ specifični selektorji za ime
+    # TUŠ specifični selektorji za ime - MAKSIMALNA POKRITOST
     NAME_SELECTORS = [
         # Primarni - HorizontalScrollingItems
         '[class*="itemProductTitle"]',
         '[class*="ItemProductTitle"]',
-        # Fallback
-        'img[alt]',  # Ime je v alt atributu slike!
+        # Title variante
         '[class*="productTitle"]',
+        '[class*="ProductTitle"]',
+        '[class*="product-title"]',
+        '[class*="name"]',
         '[class*="title"]',
+        # Alt attribute (za Tuš je pomemben!)
+        "img[alt]",
+        "img[title]",
+        # Linki in headinsi
+        "a[title]",
+        "a[alt]",
+        "h2",
+        "h3",
+        "h4",
+        "h2 a",
+        "h3 a",
+        "h4 a",
+        # Data atributi
+        "[data-name]",
+        "[data-title]",
+        "[data-product-name]",
+        # Fallback
+        '[itemprop="name"]',
+        'a[href*="/izdelki/"]',
+        'a[href*="/product/"]',
     ]
 
-    # TUŠ specifični selektorji za cene
+    # TUŠ specifični selektorji za cene - MAKSIMALNA POKRITOST
     PRICE_SELECTORS = [
         # Zelena cena (akcijska)
         '[class*="green"][class*="price"]',
         '[class*="price-discount"]',
+        '[class*="discount"]',
+        '[class*="sale"]',
         # Redna cena
         '[class*="price"]:not([class*="dashed"]):not([class*="green"])',
+        '[class*="regular"]',
+        '[class*="normal"]',
         # Prečrtana (stara) cena
         '[class*="dashed-price"]',
         '[class*="dashedPrice"]',
+        '[class*="old-price"]',
+        '[class*="original-price"]',
+        # Elementi z € znakom
+        '[class*="price"]',
+        '[class*="cena"]',
+        "[data-price]",
+        'span:has-text("€")',
+        'div:has-text("€")',
+        # Fallback
+        '[class*="value"]',
+        '[class*="amount"]',
+        '[itemprop="price"]',
     ]
 
-    # TUŠ specifični selektorji za slike
+    # TUŠ specifični selektorji za slike - MAKSIMALNA POKRITOST
     IMAGE_SELECTORS = [
+        # Primarni
         'img[class*="itemCardThumbnail"]',
         'img[class*="ItemCardThumbnail"]',
-        'img[alt]',
-        'img[src]',
+        'img[class*="thumbnail"]',
+        # Tuš specifični
+        'img[src*="hitrinakup.com"]',
+        'img[src*="/images/"]',
+        'img[src*="/media/"]',
+        # Alt in title
+        "img[alt]",
+        "img[title]",
+        # CDN in cache
+        'img[src*="cdn"]',
+        'img[src*="cache"]',
+        # Lazy loading
+        "img[data-src]",
+        "img[data-lazy]",
+        'img[loading="lazy"]',
+        # Modern selectors
+        "picture img",
+        ".image img",
+        ".picture img",
+        '[class*="image"] img',
+        # Fallback
+        "img[src]",
     ]
 
     def __init__(self, page: Page):
@@ -112,39 +211,36 @@ class TusScraper(BulletproofScraper):
     # ==================== NAVIGATION ====================
 
     def click_main_category(self, category_name: str) -> bool:
-        """BULLETPROOF klik na glavno kategorijo"""
-        self.log(f"Klikam kategorijo: {category_name}")
+        """HITRO klik na glavno kategorijo - BREZ HOVER"""
+        self.log(f"HITRO klik na kategorijo: {category_name}")
 
-        category_selectors = [
+        # SAMO KLiki - brez hover
+        click_selectors = [
             f'a:has-text("{category_name}")',
-            f'[class*="category"] a:has-text("{category_name}")',
-            f'[class*="Category"] a:has-text("{category_name}")',
             f'div:has-text("{category_name}") a',
             f'[class*="categoryCard"]:has-text("{category_name}")',
             f'[class*="CategoryCard"]:has-text("{category_name}")',
         ]
 
-        for selector in category_selectors:
+        for selector in click_selectors:
             try:
-                els = self.page.query_selector_all(selector)
-                for el in els:
-                    if el.is_visible():
-                        text = el.inner_text().strip()
-                        # Preveri da je pravo ujemanje
-                        if category_name.lower() in text.lower():
-                            el.click()
-                            self.random_delay(2.0, 2.5)
-                            self.log(f"Kliknil kategorijo: {category_name}", "SUCCESS")
-                            return True
+                self.page.click(f'text="{category_name}"', timeout=5000)
+                self.random_delay(2.0, 2.5)
+                self.log(f"HITRO kliknil kategorijo: {category_name}", "SUCCESS")
+                return True
             except:
                 continue
 
-        # Fallback - text selector
+        # Fallback - preveri vse 'a' elemente
         try:
-            self.page.click(f'text="{category_name}"', timeout=5000)
-            self.random_delay(2.0, 2.5)
-            self.log(f"Kliknil kategorijo (text): {category_name}", "SUCCESS")
-            return True
+            links = self.page.query_selector_all("a")
+            for link in links:
+                text = link.inner_text().strip()
+                if category_name.lower() in text.lower():
+                    link.click()
+                    self.random_delay(2.0, 2.5)
+                    self.log(f"Fallback klik: {category_name}", "SUCCESS")
+                    return True
         except:
             pass
 
@@ -155,20 +251,18 @@ class TusScraper(BulletproofScraper):
         """BULLETPROOF pridobivanje podkategorij na levi strani"""
         subcategories = []
 
+        # NOVA HTML STRUKTURA: category-card-text + category-card-link
         subcategory_selectors = [
+            "p.category-card-text a.category-card-link",
+            ".category-card-text a.category-card-link",
+            '[class*="category-card-text"] a[class*="category-card-link"]',
+            '[class*="category-card-text"] a',
+            ".category-card-text a",
+            # Fallback za staro verzijo
             '[class*="sidebar"] a',
             '[class*="Sidebar"] a',
             '[class*="category-list"] a',
-            '[class*="CategoryList"] a',
-            '[class*="subcategory"] a',
-            '[class*="Subcategory"] a',
-            '[class*="filter"] a[href*="/kategorije/"]',
-            '[class*="Filter"] a[href*="/kategorije/"]',
-            'nav[class*="category"] a',
-            'aside a[href*="/kategorije/"]',
-            '[class*="leftMenu"] a',
-            '[class*="left-menu"] a',
-            '.categories a',
+            ".categories a",
         ]
 
         for selector in subcategory_selectors:
@@ -187,16 +281,19 @@ class TusScraper(BulletproofScraper):
                             continue
 
                         # Ignoriraj "Vse", "Kategorije", itd
-                        skip_words = ["vse", "vse kategorije", "kategorije", "domov", "nazaj"]
+                        skip_words = [
+                            "vse",
+                            "vse kategorije",
+                            "kategorije",
+                            "domov",
+                            "nazaj",
+                        ]
                         if text.lower() in skip_words:
                             continue
 
                         # Preveri da ni duplikat
                         if text not in [s["name"] for s in subcategories]:
-                            subcategories.append({
-                                "name": text,
-                                "href": href
-                            })
+                            subcategories.append({"name": text, "href": href})
                     except:
                         continue
 
@@ -209,42 +306,46 @@ class TusScraper(BulletproofScraper):
         return subcategories
 
     def click_subcategory(self, subcategory: dict) -> bool:
-        """BULLETPROOF klik na podkategorijo"""
-        name = subcategory["name"]
-        href = subcategory.get("href", "")
+        """JavaScript klik na podkategorijo - HITRI REŠITEV"""
+        self.log(f"JavaScript klik na podkategorijo: {subcategory['name']}")
 
-        self.log(f"Klikam podkategorijo: {name}")
+        try:
+            # Uporabi JavaScript za klik - zaobide React state management
+            click_js = f"""
+            () => {{
+                // Poišči link z imenom "{subcategory["name"]}"
+                const allElements = document.querySelectorAll('a, div, p, span');
+                
+                for (const element of allElements) {{
+                    const text = element.textContent || element.innerText || '';
+                    const href = element.getAttribute('href') || element.getAttribute('data-href') || '';
+                    
+                    if (text === "{subcategory["name"]}" && href) {{
+                        element.click();
+                        return 'SUCCESS';
+                    }}
+                }}
+                
+                return 'NOT_FOUND';
+            }}
+            """
 
-        subcategory_selectors = [
-            f'[class*="sidebar"] a:has-text("{name}")',
-            f'[class*="Sidebar"] a:has-text("{name}")',
-            f'a:has-text("{name}")',
-            f'[class*="category"] a:has-text("{name}")',
-        ]
+            result = self.page.evaluate(click_js)
 
-        for selector in subcategory_selectors:
-            try:
-                el = self.page.query_selector(selector)
-                if el and el.is_visible():
-                    el.click()
-                    self.random_delay(2.0, 2.5)
-                    self.log(f"Kliknil podkategorijo: {name}", "SUCCESS")
-                    return True
-            except:
-                continue
-
-        # Fallback - poskusi href
-        if href:
-            try:
-                full_url = href if href.startswith("http") else f"{self.BASE_URL}{href}"
-                self.safe_goto(full_url)
-                self.log(f"Navigiral na podkategorijo: {name}", "SUCCESS")
+            if result == "SUCCESS":
+                self.log(
+                    f"JavaScript klik uspešen na: {subcategory['name']}", "SUCCESS"
+                )
                 return True
-            except:
-                pass
+            else:
+                self.log(
+                    f"JavaScript ni našel element za: {subcategory['name']}", "ERROR"
+                )
+                return False
 
-        self.log(f"Ne najdem podkategorije: {name}", "WARNING")
-        return False
+        except Exception as e:
+            self.log(f"JavaScript klik napaka: {e}", "ERROR")
+            return False
 
     def scroll_and_load_all(self, max_scrolls: int = 200):
         """BULLETPROOF infinite scroll za Tuš"""
@@ -306,7 +407,7 @@ class TusScraper(BulletproofScraper):
                         current_products = max(current_products, len(els))
                 except:
                     continue
-            
+
             # Tudi preštej a[href*="/izdelki/"] za dodatno verifikacijo
             try:
                 product_links = self.page.query_selector_all('a[href*="/izdelki/"]')
@@ -322,9 +423,13 @@ class TusScraper(BulletproofScraper):
                 last_product_count = current_products
 
             if scroll_count % 5 == 0:
-                self.log(f"Scroll {scroll_count}: ~{current_products} izdelkov, no_change={no_change}")
+                self.log(
+                    f"Scroll {scroll_count}: ~{current_products} izdelkov, no_change={no_change}"
+                )
 
-        self.log(f"Scroll končan po {scroll_count} scrollih, končno {last_product_count} izdelkov")
+        self.log(
+            f"Scroll končan po {scroll_count} scrollih, končno {last_product_count} izdelkov"
+        )
 
     # ==================== DATA EXTRACTION ====================
 
@@ -338,7 +443,14 @@ class TusScraper(BulletproofScraper):
                 return True
 
             # Besede za akcijo
-            discount_words = ["akcija", "znižano", "popust", "super cena", "ugodno", "prihrani"]
+            discount_words = [
+                "akcija",
+                "znižano",
+                "popust",
+                "super cena",
+                "ugodno",
+                "prihrani",
+            ]
             if any(w in text for w in discount_words):
                 return True
 
@@ -352,7 +464,9 @@ class TusScraper(BulletproofScraper):
                 '[class*="promo"]',
                 '[class*="green"][class*="price"]',
                 '[class*="dashed"]',
-                'del', 's', 'strike',
+                "del",
+                "s",
+                "strike",
                 '[class*="old"]',
                 '[class*="regular"]',
             ]
@@ -365,7 +479,9 @@ class TusScraper(BulletproofScraper):
         except:
             return False
 
-    def extract_product_data(self, element: ElementHandle, category: str = "") -> Optional[dict]:
+    def extract_product_data(
+        self, element: ElementHandle, category: str = ""
+    ) -> Optional[dict]:
         """
         BULLETPROOF ekstrakcija podatkov izdelka za Tuš / Hitri Nakup.
 
@@ -381,7 +497,7 @@ class TusScraper(BulletproofScraper):
 
             # NAJPREJ: Vzemi ime iz img[alt] - najbolj zanesljivo za Tuš!
             try:
-                img = element.query_selector('img[alt]')
+                img = element.query_selector("img[alt]")
                 if img:
                     alt = img.get_attribute("alt") or ""
                     alt = alt.strip()
@@ -428,7 +544,9 @@ class TusScraper(BulletproofScraper):
                 '[class*="oldPrice"]',
                 '[class*="regular-price"]',
                 '[class*="regularPrice"]',
-                'del', 's', 'strike',
+                "del",
+                "s",
+                "strike",
             ]
 
             for sel in dashed_selectors:
@@ -472,7 +590,7 @@ class TusScraper(BulletproofScraper):
             # 3. Če ni zelene/dashed cene - vzemi #price ki NI zelena/dashed
             if not regular_price and not sale_price:
                 price_selectors = [
-                    '#price',
+                    "#price",
                     '[id="price"]',
                     '[class*="price"]:not([class*="green"]):not([class*="dashed"]):not([class*="old"])',
                     '[class*="Price"]:not([class*="Green"]):not([class*="Dashed"]):not([class*="Old"])',
@@ -484,13 +602,19 @@ class TusScraper(BulletproofScraper):
                         for el in els:
                             class_name = (el.get_attribute("class") or "").lower()
                             # Preskoči zeleno in dashed
-                            if "green" in class_name or "dashed" in class_name or "old" in class_name:
+                            if (
+                                "green" in class_name
+                                or "dashed" in class_name
+                                or "old" in class_name
+                            ):
                                 continue
 
                             text = el.inner_text()
                             match = re.search(r"(\d+)[,.](\d{2})", text)
                             if match:
-                                regular_price = float(f"{match.group(1)}.{match.group(2)}")
+                                regular_price = float(
+                                    f"{match.group(1)}.{match.group(2)}"
+                                )
                                 break
 
                         if regular_price:
@@ -504,7 +628,12 @@ class TusScraper(BulletproofScraper):
                 has_discount = self.has_discount_badge(element)
 
                 # Odstrani cene na enoto
-                clean = re.sub(r"\d+[,.]\d{2}\s*€?\s*/\s*(kg|kos|kom|l|ml|g)\b", " ", text, flags=re.I)
+                clean = re.sub(
+                    r"\d+[,.]\d{2}\s*€?\s*/\s*(kg|kos|kom|l|ml|g)\b",
+                    " ",
+                    text,
+                    flags=re.I,
+                )
 
                 prices = []
                 for m in re.finditer(r"(\d+)[,.](\d{2})\s*€?", clean):
@@ -538,10 +667,10 @@ class TusScraper(BulletproofScraper):
                     img = element.query_selector(selector)
                     if img:
                         src = (
-                            img.get_attribute("data-src") or
-                            img.get_attribute("data-lazy-src") or
-                            img.get_attribute("src") or
-                            ""
+                            img.get_attribute("data-src")
+                            or img.get_attribute("data-lazy-src")
+                            or img.get_attribute("src")
+                            or ""
                         )
 
                         if src and not src.startswith("data:"):
@@ -562,7 +691,9 @@ class TusScraper(BulletproofScraper):
                 cat = f"{self.current_category} > {self.current_subcategory}"
 
             # ===== ENOTA (iz imena) =====
-            unit_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl|kos|kom)\b", name, re.I)
+            unit_match = re.search(
+                r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl|kos|kom)\b", name, re.I
+            )
             unit = ""
             if unit_match:
                 unit = f"{unit_match.group(1)}{unit_match.group(2).lower()}"
@@ -593,7 +724,9 @@ class TusScraper(BulletproofScraper):
                 if not elements or len(elements) < 3:
                     continue
 
-                self.log(f"Najdenih {len(elements)} elementov s selektorjem: {selector}")
+                self.log(
+                    f"Najdenih {len(elements)} elementov s selektorjem: {selector}"
+                )
 
                 for el in elements:
                     try:
@@ -629,7 +762,7 @@ class TusScraper(BulletproofScraper):
             pass
 
         # Infinite scroll
-        self.scroll_and_load_all(max_scrolls=80)
+        self.scroll_and_load_all(max_scrolls=150)
 
         # Scrapaj izdelke
         category = f"{main_category} > {subcategory['name']}"
@@ -673,18 +806,20 @@ class TusScraper(BulletproofScraper):
         if not subcategories:
             # Če ni podkategorij, scrapa direktno
             self.log("Ni podkategorij, scrapam direktno")
-            self.scroll_and_load_all(max_scrolls=80)
+            self.scroll_and_load_all(max_scrolls=150)
             products = self.scrape_current_page(category_name)
         else:
             # Scrapaj vsako podkategorijo
             for i, subcat in enumerate(subcategories):
                 try:
-                    self.log(f"  [{i+1}/{len(subcategories)}] {subcat['name']}")
+                    self.log(f"  [{i + 1}/{len(subcategories)}] {subcat['name']}")
                     subcat_products = self.scrape_subcategory(subcat, category_name)
                     products.extend(subcat_products)
                     self.random_delay(1.0, 1.5)
                 except Exception as e:
-                    self.log(f"  Napaka pri podkategoriji {subcat['name']}: {e}", "WARNING")
+                    self.log(
+                        f"  Napaka pri podkategoriji {subcat['name']}: {e}", "WARNING"
+                    )
                     continue
 
         self.log(f"{category_name}: KONČANO - {len(products)} izdelkov", "SUCCESS")
@@ -706,7 +841,7 @@ class TusScraper(BulletproofScraper):
 
         first_page = True
         for i, (cat_name, cat_url) in enumerate(self.CATEGORY_URLS):
-            self.log(f"\n[{i+1}/{total}] {cat_name}")
+            self.log(f"\n[{i + 1}/{total}] {cat_name}")
             self.current_category = cat_name
             self.current_subcategory = ""
 
@@ -731,7 +866,9 @@ class TusScraper(BulletproofScraper):
 
                 # 3. Infinite scroll - poberi VSE izdelke
                 self.log("Infinite scroll...")
-                self.scroll_and_load_all(max_scrolls=1000)  # Dovolj scrollov za 8000+ izdelkov
+                self.scroll_and_load_all(
+                    max_scrolls=1000
+                )  # Dovolj scrollov za 8000+ izdelkov
 
                 # 4. Scrapaj izdelke
                 products = self.scrape_current_page(cat_name)

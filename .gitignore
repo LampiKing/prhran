@@ -55,6 +55,7 @@ scraper/.env
 
 # Sensitive files
 automated_scraper/credentials.json
+scraper/credentials.json
 google-play-service-account.json
 *.keystore
 *.jks

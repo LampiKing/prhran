@@ -14,6 +14,7 @@ BULLETPROOF FEATURES:
 - Anti-detection
 - Progress saving
 """
+
 import re
 import time
 from typing import Optional, Tuple
@@ -43,7 +44,10 @@ class MercatorScraper(BulletproofScraper):
         ("Pijače", "https://mercatoronline.si/brskaj#categories=14535612"),
         ("Testenine in riž", "https://mercatoronline.si/brskaj#categories=14535661"),
         ("Konzerve", "https://mercatoronline.si/brskaj#categories=14535681"),
-        ("Čokolada in sladkarije", "https://mercatoronline.si/brskaj#categories=14535711"),
+        (
+            "Čokolada in sladkarije",
+            "https://mercatoronline.si/brskaj#categories=14535711",
+        ),
         ("Slani prigrizki", "https://mercatoronline.si/brskaj#categories=14535736"),
         ("Hrana za živali", "https://mercatoronline.si/brskaj#categories=14535768"),
         ("Otroci", "https://mercatoronline.si/brskaj#categories=14535837"),
@@ -53,56 +57,164 @@ class MercatorScraper(BulletproofScraper):
         ("Bio izdelki", "https://mercatoronline.si/brskaj#categories=16873196"),
     ]
 
-    # BULLETPROOF selektorji - specifično za Mercator Online
+    # BULLETPROOF selektorji - MAKSIMALNA POKRITOST
     PRODUCT_SELECTORS = [
         # Mercator specifični - GLAVNI
-        '.box.item.product',
-        'div.product',
-        '.product[data-item-id]',
-        '[data-item-id]',
-        # Fallback
-        '.box.product',
+        ".box.item.product",
+        "div.product",
+        ".product[data-item-id]",
+        "[data-item-id]",
+        # Grid layout elementi
+        ".grid-item",
+        ".catalog-item",
+        ".category-item",
+        # Box elementi
+        ".box.product",
         '[class*="product"]',
-        '.item.product',
+        ".item.product",
+        # Modern CSS frameworki
+        '[class*="col"]',
+        '[class*="grid"] > div',
+        '[class*="flex"] > div',
+        # Ultimate fallback
+        "article",
+        'div[class*="item"]',
+        'li[class*="product"]',
+        "div[data-product]",
     ]
 
     NAME_SELECTORS = [
         # Mercator specifični
-        '.lib-product-name',
-        '.product-name',
-        '.lib-product-url',
+        ".lib-product-name",
+        ".product-name",
+        ".lib-product-url",
+        ".lib-product-title",
         # Iz data atributa
-        '[data-analytics-object]',
+        "[data-analytics-object]",
+        "[data-product-name]",
+        "[data-name]",
+        # Headings
+        "h2",
+        "h3",
+        "h4",
+        "h2 a",
+        "h3 a",
+        "h4 a",
+        # Linki na izdelke
+        'a[href*="/izdelek"]',
+        'a[href*="/product"]',
+        "a[title]",
         # Fallback
         '[class*="product-name"]',
         '[class*="name"]',
-        'a[href*="/izdelek"]',
-        'a[href*="/product"]',
+        '[class*="title"]',
+        '[itemprop="name"]',
     ]
 
     PRICE_SELECTORS = [
-        # Mercator specifični
-        '.lib-product-price',
-        '.lib-product-normal-price',
-        '.lib-product-pc30_price',
-        '.lib-product-price-per-unit-main',
-        '.product-price-holder',
-        # Fallback
+        # Mercator specifični -全面
+        ".lib-product-price",
+        ".lib-product-normal-price",
+        ".lib-product-pc30_price",
+        ".lib-product-price-per-unit-main",
+        ".product-price-holder",
+        ".price-current",
+        ".price-regular",
+        ".price-sale",
+        ".price-normal",
+        # Elementi s € znakom
         '[class*="price"]',
+        '[class*="cena"]',
+        "[data-price]",
+        'span:has-text("€")',
+        'div:has-text("€")',
+        '[class*="euro"]',
+        # Fallback
+        '[class*="value"]',
+        '[class*="amount"]',
+        '[itemprop="price"]',
     ]
 
     IMAGE_SELECTORS = [
-        # Mercator specifični
-        '.product-image img',
+        # Mercator specifični - high quality
+        ".product-image img",
         'img[src*="mercatoronline.si/img/cache/products"]',
+        'img[src*="trgovina.mercator.si"]',
         'img[src*="mercator"]',
+        'img[src*="/img/cache/products"]',
+        'img[src*="/images/products"]',
+        # CDN in cache
+        'img[src*="cdn"]',
+        'img[src*="cache"]',
+        'img[src*="/media/"]',
+        # Lazy loading
+        "img[data-src]",
+        "img[data-lazy]",
+        'img[loading="lazy"]',
+        # Modern selectors
+        "picture img",
+        ".image img",
+        ".picture img",
+        '[class*="image"] img',
         # Fallback
-        'img[src]',
+        "img[src]",
+        '[src*="product"]',
     ]
 
     def __init__(self, page: Page):
         super().__init__(page)
         self.current_category = "Splošno"
+
+    def accept_cookies(self) -> bool:
+        """Accept cookies - Mercator specific"""
+        try:
+            # Mercator cookie popup "Dovolim vse in zapri"
+            cookie_selectors = [
+                'button:has-text("Dovolim vse in zapri")',
+                'button:has-text("Dovolim vse")',
+                'button:has-text("Sprejmi vse")',
+                'button:has-text("Accept all")',
+                'button:has-text("Accept")',
+                "#onetrust-accept-btn-handler",
+                'button[data-testid="accept-cookies"]',
+                ".cookie-accept",
+                '[aria-label="Accept cookies"]',
+                'button[id*="accept"]',
+                'button[class*="accept"]',
+            ]
+
+            for selector in cookie_selectors:
+                try:
+                    btn = self.page.query_selector(selector)
+                    if btn and btn.is_visible():
+                        btn.click()
+                        self.log("Piškotki sprejeti", "SUCCESS")
+                        time.sleep(1)
+                        return True
+                except:
+                    continue
+
+            # Fallback - počakaj in poskusi še enkrat
+            time.sleep(2)
+            for selector in cookie_selectors:
+                try:
+                    btn = self.page.query_selector(selector)
+                    if btn and btn.is_visible():
+                        btn.click()
+                        self.log("Piškotki sprejeti (2. poskus)", "SUCCESS")
+                        time.sleep(1)
+                        return True
+                except:
+                    continue
+
+            # Če ni piškotkov, gremo naprej (samo warning)
+            self.log("Piškotkov ni najdenih v 10s, gremo naprej", "WARNING")
+            return True
+
+        except Exception as e:
+            # Če pride do napake, gremo naprej
+            self.log(f"Napaka pri piškotkih, gremo naprej: {e}", "WARNING")
+            return True
 
     # ==================== POPUP HANDLING ====================
 
@@ -119,22 +231,39 @@ class MercatorScraper(BulletproofScraper):
         try:
             # NAJPREJ: Počakaj da se popup ZARES pojavi
             try:
-                self.page.wait_for_selector('[aria-label="close"], [aria-label="Close"], button[class*="close"]', timeout=3000)
+                self.page.wait_for_selector(
+                    '[aria-label="close"], [aria-label="Close"], button[class*="close"]',
+                    timeout=3000,
+                )
             except:
                 pass  # Če se ne pojavi, nadaljuj
 
-            # MERCATOR SPECIFIČNI X GUMB - aria-label="close"
-            # To je X gumb v zgornjem desnem kotu popup-a
+            # MERCATOR SPECIFIČNI X GUMB - popup za dostavo
+            # Popup: "Izbira načina prevzema izdelkov"
             priority_selectors = [
+                # X gumbi zgoraj desno
                 '[aria-label="close"]',
                 '[aria-label="Close"]',
                 'button[aria-label="close"]',
                 'button[aria-label="Close"]',
+                # Modal close buttoni
+                ".ant-modal-close",
+                ".ant-modal-close-x",
+                ".modal-close",
+                ".close-button",
                 # SVG X ikona
-                'button svg',
-                # Pozicijsko - zgornji desni kot
-                '[class*="Modal"] button:first-of-type',
-                '[class*="modal"] button:first-of-type',
+                "button svg",
+                "button[aria-label='×']",
+                "button[title='Close']",
+                # Pozicijsko - prvi gumb v popup-u
+                '[class*="Modal"] button',
+                '[class*="modal"] button',
+                '[class*="popup"] button',
+                'div[role="dialog"] button',
+                # Specifično za Mercator
+                'button:has-text("×")',
+                'span:has-text("×")',
+                'button:has-text("✕")',
             ]
 
             for selector in priority_selectors:
@@ -142,7 +271,10 @@ class MercatorScraper(BulletproofScraper):
                     btn = self.page.query_selector(selector)
                     if btn and btn.is_visible():
                         btn.click()
-                        self.log(f"Popup 'Izbira nacina prevzema' ZAPRT s: {selector}", "SUCCESS")
+                        self.log(
+                            f"Popup 'Izbira nacina prevzema' ZAPRT s: {selector}",
+                            "SUCCESS",
+                        )
                         time.sleep(0.5)
                         return True
                 except:
@@ -183,9 +315,11 @@ class MercatorScraper(BulletproofScraper):
 
             # Fallback: Najdi modal in klikni prvi gumb (X je ponavadi prvi)
             try:
-                modal = self.page.query_selector('[class*="Modal"], [class*="modal"], [role="dialog"]')
+                modal = self.page.query_selector(
+                    '[class*="Modal"], [class*="modal"], [role="dialog"]'
+                )
                 if modal and modal.is_visible():
-                    close_btn = modal.query_selector('button')
+                    close_btn = modal.query_selector("button")
                     if close_btn and close_btn.is_visible():
                         close_btn.click()
                         self.log("Popup zaprt z prvim gumbom v modalu", "SUCCESS")
@@ -336,11 +470,15 @@ class MercatorScraper(BulletproofScraper):
             if scroll_count % 20 == 0:
                 self.log(f"Scroll {scroll_count}: ~{current_products} izdelkov")
 
-        self.log(f"Scroll končan po {scroll_count} scrollih (~{last_product_count} izdelkov)")
+        self.log(
+            f"Scroll končan po {scroll_count} scrollih (~{last_product_count} izdelkov)"
+        )
 
     # ==================== DATA EXTRACTION ====================
 
-    def extract_mercator_prices(self, element: ElementHandle) -> Tuple[Optional[float], Optional[float]]:
+    def extract_mercator_prices(
+        self, element: ElementHandle
+    ) -> Tuple[Optional[float], Optional[float]]:
         """
         BULLETPROOF ekstrakcija cen za Mercator.
 
@@ -366,22 +504,20 @@ class MercatorScraper(BulletproofScraper):
 
                 # Preveri ali je cena na enoto (ignoriramo!)
                 # Ujame: "/ 1l", "/ 1kg", "/kg", "/kos", "/ 100g", itd
-                after_text = text[pos + len(full_match):pos + len(full_match) + 30]
+                after_text = text[pos + len(full_match) : pos + len(full_match) + 30]
                 is_per_unit = re.match(
                     r"^\s*/\s*\d*\s*(kg|kos|kom|kpl|pak|ml|cl|dl|mm|cm|m|g|l)\b",
                     after_text,
-                    re.I
+                    re.I,
                 )
 
                 if is_per_unit:
                     continue  # Preskoči ceno na enoto
 
-                if self.is_valid_price(value) and value not in [p["value"] for p in prices]:
-                    prices.append({
-                        "value": value,
-                        "pos": pos,
-                        "text": full_match
-                    })
+                if self.is_valid_price(value) and value not in [
+                    p["value"] for p in prices
+                ]:
+                    prices.append({"value": value, "pos": pos, "text": full_match})
 
             # Preveri za popust badge
             has_discount = False
@@ -400,7 +536,9 @@ class MercatorScraper(BulletproofScraper):
                     '[class*="popust"]',
                     '[class*="sale"]',
                     '[class*="Sale"]',
-                    'del', 's', 'strike',
+                    "del",
+                    "s",
+                    "strike",
                 ]
                 for sel in discount_selectors:
                     if element.query_selector(sel):
@@ -437,7 +575,9 @@ class MercatorScraper(BulletproofScraper):
         except Exception as e:
             return None, None
 
-    def extract_product_data(self, element: ElementHandle, category: str = "") -> Optional[dict]:
+    def extract_product_data(
+        self, element: ElementHandle, category: str = ""
+    ) -> Optional[dict]:
         """
         BULLETPROOF ekstrakcija podatkov izdelka za Mercator.
 
@@ -458,7 +598,9 @@ class MercatorScraper(BulletproofScraper):
                 if analytics_json:
                     data = json_module.loads(analytics_json)
                     name = data.get("item_name", "")
-                    product_category = data.get("item_category", "") or data.get("item_category2", "")
+                    product_category = data.get("item_category", "") or data.get(
+                        "item_category2", ""
+                    )
 
                     # Cena je v price polju
                     if "price" in data:
@@ -501,7 +643,9 @@ class MercatorScraper(BulletproofScraper):
                         parts = re.split(r"\d+[,.]\d{2}\s*€", all_text)
                         if parts and len(parts[0].strip()) > 3:
                             name = parts[0].strip()
-                            name = re.sub(r"^razvrsti\s*(po)?:?\s*", "", name, flags=re.I)
+                            name = re.sub(
+                                r"^razvrsti\s*(po)?:?\s*", "", name, flags=re.I
+                            )
                             name = re.sub(r"^kategorij[ae]:?\s*", "", name, flags=re.I)
                             name = re.sub(r"^filter:?\s*", "", name, flags=re.I)
 
@@ -527,11 +671,11 @@ class MercatorScraper(BulletproofScraper):
                     img = element.query_selector(selector)
                     if img:
                         src = (
-                            img.get_attribute("data-src") or
-                            img.get_attribute("data-lazy-src") or
-                            img.get_attribute("data-original") or
-                            img.get_attribute("src") or
-                            ""
+                            img.get_attribute("data-src")
+                            or img.get_attribute("data-lazy-src")
+                            or img.get_attribute("data-original")
+                            or img.get_attribute("src")
+                            or ""
                         )
 
                         if src and not src.startswith("data:"):
@@ -550,7 +694,9 @@ class MercatorScraper(BulletproofScraper):
             cat = product_category or category or self.current_category
 
             # ===== ENOTA (iz imena) =====
-            unit_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl|kos|kom)\b", name, re.I)
+            unit_match = re.search(
+                r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl|kos|kom)\b", name, re.I
+            )
             unit = ""
             if unit_match:
                 unit = f"{unit_match.group(1)}{unit_match.group(2).lower()}"
@@ -581,7 +727,9 @@ class MercatorScraper(BulletproofScraper):
                 if not elements or len(elements) < 3:
                     continue
 
-                self.log(f"Najdenih {len(elements)} elementov s selektorjem: {selector}")
+                self.log(
+                    f"Najdenih {len(elements)} elementov s selektorjem: {selector}"
+                )
 
                 for el in elements:
                     try:
@@ -654,7 +802,7 @@ class MercatorScraper(BulletproofScraper):
 
         # Scrapaj vsako kategorijo
         for i, (category_name, url) in enumerate(self.CATEGORY_URLS):
-            self.log(f"\n[{i+1}/{len(self.CATEGORY_URLS)}] {category_name}")
+            self.log(f"\n[{i + 1}/{len(self.CATEGORY_URLS)}] {category_name}")
 
             try:
                 products = self.scrape_category(category_name, url)
@@ -699,8 +847,8 @@ class MercatorScraper(BulletproofScraper):
         time.sleep(1)
 
         # ============ INFINITE SCROLL ============
-        # Mercator /brskaj = ~90 scrollov za vse izdelke
-        self.log("Zacem infinite scroll (~90 scrollov)...")
+        # Mercator /brskaj = 100+ scrollov za 7000+ izdelkov
+        self.log("Zacem infinite scroll (100+ scrollov)...")
         self.scroll_and_load_all(max_scrolls=100)
 
         # Preveri popup še enkrat po scrollu

@@ -27,6 +27,7 @@ from urllib.parse import urlparse
 
 try:
     from rapidfuzz import fuzz, process
+
     RAPIDFUZZ_AVAILABLE = True
 except ImportError:
     RAPIDFUZZ_AVAILABLE = False
@@ -34,6 +35,7 @@ except ImportError:
 
 try:
     from unidecode import unidecode
+
     UNIDECODE_AVAILABLE = True
 except ImportError:
     UNIDECODE_AVAILABLE = False
@@ -46,122 +48,575 @@ except ImportError:
 
 KNOWN_BRANDS = {
     # ===== MLEČNI IZDELKI =====
-    "alpsko", "mu", "ego", "activia", "danone", "jogobella", "zott", "meggle",
-    "ljubljanske mlekarne", "lm", "pomurske mlekarne", "zelene doline", "z bregov",
-    "parmalat", "lactalis", "dukat", "vindija", "planika", "vipava", "krepko",
-    "skuta", "skyr", "actimel", "fantastik", "president", "gervais", "philadelphia",
-    "hochland", "mileram", "rama", "becel", "flora", "lurpak", "kerrygold",
-    "pettit suisse", "monte", "frutek", "jogurtina", "jošt", "turek",
-
+    "alpsko",
+    "mu",
+    "ego",
+    "activia",
+    "danone",
+    "jogobella",
+    "zott",
+    "meggle",
+    "ljubljanske mlekarne",
+    "lm",
+    "pomurske mlekarne",
+    "zelene doline",
+    "z bregov",
+    "parmalat",
+    "lactalis",
+    "dukat",
+    "vindija",
+    "planika",
+    "vipava",
+    "krepko",
+    "skuta",
+    "skyr",
+    "actimel",
+    "fantastik",
+    "president",
+    "gervais",
+    "philadelphia",
+    "hochland",
+    "mileram",
+    "rama",
+    "becel",
+    "flora",
+    "lurpak",
+    "kerrygold",
+    "pettit suisse",
+    "monte",
+    "frutek",
+    "jogurtina",
+    "jošt",
+    "turek",
     # ===== PIJAČE =====
-    "coca-cola", "coca cola", "coke", "pepsi", "pepsi cola", "fanta", "sprite",
-    "schweppes", "7up", "mirinda", "mountain dew", "dr pepper",
-    "radenska", "donat mg", "donat", "costella", "jamnica", "dana", "zala",
-    "vodavoda", "voda voda", "aqua viva", "jana", "mg mivela",
-    "red bull", "monster", "hell", "burn", "rockstar",
-    "cedevita", "fruc", "fructal", "ora", "jupi", "cockta", "pipi",
-    "union", "laško", "lasko", "zlatorog", "heineken", "tuborg", "corona",
-    "budweiser", "stella artois", "becks", "guinness", "leffe", "hoegaarden",
-    "jägermeister", "jagermeister", "stock", "pelinkovac", "badel",
-    "smirnoff", "absolut", "finlandia", "grey goose", "belvedere",
-    "johnnie walker", "jack daniels", "jim beam", "chivas regal", "ballantines",
-
+    "coca-cola",
+    "coca cola",
+    "coke",
+    "pepsi",
+    "pepsi cola",
+    "fanta",
+    "sprite",
+    "schweppes",
+    "7up",
+    "mirinda",
+    "mountain dew",
+    "dr pepper",
+    "radenska",
+    "donat mg",
+    "donat",
+    "costella",
+    "jamnica",
+    "dana",
+    "zala",
+    "vodavoda",
+    "voda voda",
+    "aqua viva",
+    "jana",
+    "mg mivela",
+    "red bull",
+    "monster",
+    "hell",
+    "burn",
+    "rockstar",
+    "cedevita",
+    "fruc",
+    "fructal",
+    "ora",
+    "jupi",
+    "cockta",
+    "pipi",
+    "union",
+    "laško",
+    "lasko",
+    "zlatorog",
+    "heineken",
+    "tuborg",
+    "corona",
+    "budweiser",
+    "stella artois",
+    "becks",
+    "guinness",
+    "leffe",
+    "hoegaarden",
+    "jägermeister",
+    "jagermeister",
+    "stock",
+    "pelinkovac",
+    "badel",
+    "smirnoff",
+    "absolut",
+    "finlandia",
+    "grey goose",
+    "belvedere",
+    "johnnie walker",
+    "jack daniels",
+    "jim beam",
+    "chivas regal",
+    "ballantines",
     # ===== SOKOVI =====
-    "rauch", "happy day", "cappy", "granini", "hohes c", "santal",
-    "bravo", "juicy", "pfanner", "rio", "marli", "minute maid",
-    "tropicana", "innocent", "naked", "ocean spray",
-
+    "rauch",
+    "happy day",
+    "cappy",
+    "granini",
+    "hohes c",
+    "santal",
+    "bravo",
+    "juicy",
+    "pfanner",
+    "rio",
+    "marli",
+    "minute maid",
+    "tropicana",
+    "innocent",
+    "naked",
+    "ocean spray",
     # ===== ČOKOLADE IN SLADKARIJE =====
-    "milka", "lindt", "ferrero", "kinder", "nutella", "raffaello", "rocher",
-    "mars", "snickers", "twix", "bounty", "m&m", "maltesers", "celebrations",
-    "haribo", "katjes", "trolli", "maoam", "nimm2",
-    "ritter sport", "toblerone", "merci", "after eight",
-    "orbit", "mentos", "tic tac", "airwaves", "vivident", "stimorol",
-    "gorenjka", "dorina", "kraš", "pionir", "zvečevo", "kandit",
-    "bajadera", "griotte", "rum kokos", "čokolešnik", "bronhi",
-    "cedevita", "lino", "čoko", "eurocrem", "jaffa",
-
+    "milka",
+    "lindt",
+    "ferrero",
+    "kinder",
+    "nutella",
+    "raffaello",
+    "rocher",
+    "mars",
+    "snickers",
+    "twix",
+    "bounty",
+    "m&m",
+    "maltesers",
+    "celebrations",
+    "haribo",
+    "katjes",
+    "trolli",
+    "maoam",
+    "nimm2",
+    "ritter sport",
+    "toblerone",
+    "merci",
+    "after eight",
+    "orbit",
+    "mentos",
+    "tic tac",
+    "airwaves",
+    "vivident",
+    "stimorol",
+    "gorenjka",
+    "dorina",
+    "kraš",
+    "pionir",
+    "zvečevo",
+    "kandit",
+    "bajadera",
+    "griotte",
+    "rum kokos",
+    "čokolešnik",
+    "bronhi",
+    "cedevita",
+    "lino",
+    "čoko",
+    "eurocrem",
+    "jaffa",
     # ===== KAVA IN ČAJ =====
-    "nescafe", "nescafé", "jacobs", "lavazza", "illy", "segafredo", "dallmayr",
-    "douwe egberts", "tchibo", "melitta", "carte noire", "kenco",
-    "barcaffe", "barcafe", "franck", "zlatna džezva", "grand kafa", "doncafe",
-    "lipton", "teekanne", "pickwick", "milford", "twinings", "ahmad", "dilmah",
-    "tetley", "pg tips", "yorkshire",
-
+    "nescafe",
+    "nescafé",
+    "jacobs",
+    "lavazza",
+    "illy",
+    "segafredo",
+    "dallmayr",
+    "douwe egberts",
+    "tchibo",
+    "melitta",
+    "carte noire",
+    "kenco",
+    "barcaffe",
+    "barcafe",
+    "franck",
+    "zlatna džezva",
+    "grand kafa",
+    "doncafe",
+    "lipton",
+    "teekanne",
+    "pickwick",
+    "milford",
+    "twinings",
+    "ahmad",
+    "dilmah",
+    "tetley",
+    "pg tips",
+    "yorkshire",
     # ===== ZAJTRK IN ŽITA =====
-    "nutella", "lino lada", "eurokrem", "nutkao",
-    "kelloggs", "kellogg's", "nestle", "nestlé", "fitness", "cheerios",
-    "cini minis", "lion", "cookie crisp", "nesquik", "chocapic",
-    "musli", "musli vitanella", "crownfield",
-    "corn flakes", "rice krispies", "frosties", "special k",
-    "ovseni", "oatmeal", "quaker",
-
+    "nutella",
+    "lino lada",
+    "eurokrem",
+    "nutkao",
+    "kelloggs",
+    "kellogg's",
+    "nestle",
+    "nestlé",
+    "fitness",
+    "cheerios",
+    "cini minis",
+    "lion",
+    "cookie crisp",
+    "nesquik",
+    "chocapic",
+    "musli",
+    "musli vitanella",
+    "crownfield",
+    "corn flakes",
+    "rice krispies",
+    "frosties",
+    "special k",
+    "ovseni",
+    "oatmeal",
+    "quaker",
     # ===== PECIVO =====
-    "jaffa", "domačica", "domacica", "domaćica", "petit beurre",
-    "napolitanke", "jadro", "koestlin", "koštlin",
-    "oreo", "belvita", "balconi", "barni", "biscoff",
-    "hit", "tuc", "ritz", "crackers", "grissini",
-    "7days", "dan cake", "croissant",
-
+    "jaffa",
+    "domačica",
+    "domacica",
+    "domaćica",
+    "petit beurre",
+    "napolitanke",
+    "jadro",
+    "koestlin",
+    "koštlin",
+    "oreo",
+    "belvita",
+    "balconi",
+    "barni",
+    "biscoff",
+    "hit",
+    "tuc",
+    "ritz",
+    "crackers",
+    "grissini",
+    "7days",
+    "dan cake",
+    "croissant",
     # ===== TESTENINE IN RIŽ =====
-    "barilla", "de cecco", "buitoni", "divella", "voiello", "garofalo",
-    "rio", "zlato polje", "mlinotest", "žito",
-    "uncle bens", "uncle ben's", "riso gallo", "scotti", "arborio",
-
+    "barilla",
+    "de cecco",
+    "buitoni",
+    "divella",
+    "voiello",
+    "garofalo",
+    "rio",
+    "zlato polje",
+    "mlinotest",
+    "žito",
+    "uncle bens",
+    "uncle ben's",
+    "riso gallo",
+    "scotti",
+    "arborio",
     # ===== KONZERVE IN OMAKE =====
-    "rio mare", "princes", "john west", "eva", "podravka",
-    "natureta", "bonduelle", "d'aucy", "globus",
-    "heinz", "hellmann's", "hellmanns", "knorr", "maggi", "vegeta",
-    "kečap", "ketchup", "majoneza", "gorčica", "mustard",
-
+    "rio mare",
+    "princes",
+    "john west",
+    "eva",
+    "podravka",
+    "natureta",
+    "bonduelle",
+    "d'aucy",
+    "globus",
+    "heinz",
+    "hellmann's",
+    "hellmanns",
+    "knorr",
+    "maggi",
+    "vegeta",
+    "kečap",
+    "ketchup",
+    "majoneza",
+    "gorčica",
+    "mustard",
     # ===== MESO IN MESNI IZDELKI =====
-    "poli", "celjske mesnine", "pivka", "kras", "kraš",
-    "kranjska", "perutnina ptuj", "mesnine štajerske", "štajerske mesnine",
-    "carnex", "zlatar", "gavrilović", "argeta",
-    "mortadela", "salama", "šunka", "pršut", "buđola",
-
+    "poli",
+    "celjske mesnine",
+    "pivka",
+    "kras",
+    "kraš",
+    "kranjska",
+    "perutnina ptuj",
+    "mesnine štajerske",
+    "štajerske mesnine",
+    "carnex",
+    "zlatar",
+    "gavrilović",
+    "argeta",
+    "mortadela",
+    "salama",
+    "šunka",
+    "pršut",
+    "buđola",
     # ===== OSEBNA NEGA =====
-    "nivea", "dove", "palmolive", "fa", "rexona", "axe", "old spice",
-    "lynx", "sure", "degree",
-    "head shoulders", "head & shoulders", "pantene", "loreal", "l'oreal",
-    "garnier", "schwarzkopf", "syoss", "gliss kur", "elseve",
-    "schauma", "timotei", "herbal essences", "tresemme",
-    "oral-b", "colgate", "sensodyne", "meridol", "elmex", "signal",
-    "listerine", "parodontax", "lacalut", "blend-a-med",
-    "always", "libresse", "ob", "kotex", "naturella",
-    "pampers", "huggies", "baby dry", "active fit",
-    "gillette", "venus", "wilkinson", "bic",
-    "neutrogena", "clean & clear", "clearasil",
-
+    "nivea",
+    "dove",
+    "palmolive",
+    "fa",
+    "rexona",
+    "axe",
+    "old spice",
+    "lynx",
+    "sure",
+    "degree",
+    "head shoulders",
+    "head & shoulders",
+    "pantene",
+    "loreal",
+    "l'oreal",
+    "garnier",
+    "schwarzkopf",
+    "syoss",
+    "gliss kur",
+    "elseve",
+    "schauma",
+    "timotei",
+    "herbal essences",
+    "tresemme",
+    "oral-b",
+    "colgate",
+    "sensodyne",
+    "meridol",
+    "elmex",
+    "signal",
+    "listerine",
+    "parodontax",
+    "lacalut",
+    "blend-a-med",
+    "always",
+    "libresse",
+    "ob",
+    "kotex",
+    "naturella",
+    "pampers",
+    "huggies",
+    "baby dry",
+    "active fit",
+    "gillette",
+    "venus",
+    "wilkinson",
+    "bic",
+    "neutrogena",
+    "clean & clear",
+    "clearasil",
     # ===== ČISTILA =====
-    "ajax", "cif", "domestos", "fairy", "jar", "pur", "somat", "finish",
-    "calgon", "vanish", "ariel", "persil", "omo", "surf", "perwoll", "tide",
-    "lenor", "silan", "coccolino", "vernel", "softlan",
-    "bref", "wc net", "cillit bang", "mr proper", "meister proper",
-    "pronto", "pledge", "air wick", "glade", "febreze",
-    "savo", "domestos", "klorin",
-
+    "ajax",
+    "cif",
+    "domestos",
+    "fairy",
+    "jar",
+    "pur",
+    "somat",
+    "finish",
+    "calgon",
+    "vanish",
+    "ariel",
+    "persil",
+    "omo",
+    "surf",
+    "perwoll",
+    "tide",
+    "lenor",
+    "silan",
+    "coccolino",
+    "vernel",
+    "softlan",
+    "bref",
+    "wc net",
+    "cillit bang",
+    "mr proper",
+    "meister proper",
+    "pronto",
+    "pledge",
+    "air wick",
+    "glade",
+    "febreze",
+    "savo",
+    "domestos",
+    "klorin",
     # ===== HRANA ZA ŽIVALI =====
-    "whiskas", "kitekat", "felix", "sheba", "perfect fit",
-    "pedigree", "cesar", "chappi", "friskies", "gourmet",
-    "purina", "one", "pro plan", "royal canin", "hills",
-
+    "whiskas",
+    "kitekat",
+    "felix",
+    "sheba",
+    "perfect fit",
+    "pedigree",
+    "cesar",
+    "chappi",
+    "friskies",
+    "gourmet",
+    "purina",
+    "one",
+    "pro plan",
+    "royal canin",
+    "hills",
     # ===== TRGOVSKE ZNAMKE =====
-    "s budget", "spar", "spar premium", "spar natur pur", "spar vital",
-    "spar free from", "spar veggie", "spar enjoy", "despar",
-    "mercator", "m klasik", "m bio", "lumpi", "dona", "rondo",
-    "tuš", "tus", "tušev izbor", "tuš premium",
-    "aro", "tip", "k classic", "k bio", "ja", "gut & günstig",
-    "milbona", "pilos", "pikok", "chef select", "deluxe", "cien",
-    "w5", "denkmit", "balea", "alverde",
-
+    "s budget",
+    "spar",
+    "spar premium",
+    "spar natur pur",
+    "spar vital",
+    "mercator",
+    "mp",
+    "mercator premium",
+    "tuš",
+    "tus",
+    "hitri nakup",
+    "hofer",
+    "lidl",
+    "disco",
+    "interspar",
+    "eurospin",
+    "plet",
+    "leclerc",
+    "dm",
+    "müller",
+    "drogerie markt",
+    "akcija",
+    "akcijska",
+    "specialna",
+    "lastna znamka",
+    "lastna",
+    "private label",
+    # ===== SLOVENSKE ZNAMKE =====
+    "kras",
+    "gorenjka",
+    "dolcel",
+    "kolonka",
+    "berta",
+    "atelje",
+    "parkelj",
+    "ipa",
+    "lecka",
+    "radenska",
+    "costella",
+    "fructal",
+    "cockta",
+    "pipi",
+    "union",
+    "laško",
+    "lasko",
+    "zlatorog",
+    "čokoladnica",
+    "bonboniera",
+    "mlekpol",
+    "ljubljanske mlekarne",
+    "mllek",
+    "planika",
+    "vipava",
+    "krepko",
+    "pelicon",
+    "obala",
+    "vinakoper",
+    "santo",
+    "blazic",
+    "jagermajer",
+    "medex",
+    "afrodita",
+    "kosmela",
+    "intesa",
+    "sana",
+    "vitakraft",
+    "vis",
+    "fructal",
+    "droga",
+    "salus",
+    "leku",
+    "krka",
+    "sandoz",
+    "lek",
+    # ===== MESNE IN MESNI ZNAMKE =====
+    "pivka",
+    "celjske mesnine",
+    "kraš",
+    "poli",
+    "gavrilović",
+    "perutnina",
+    "žito",
+    "agrokor",
+    "fortenova",
+    "dukat",
+    "vindija",
+    "zlatiborac",
+    "mesnine štajerske",
+    "štajerske mesnine",
+    "carnex",
+    "zlatar",
+    "argeta",
+    "m-link",
+    "imperial",
+    "pokraj",
+    "bosi",
+    "ni",
+    "hrib",
+    "breza",
+    # ===== PECIVSKO IN SLADKORNO =====
+    "pevec",
+    "semenarna",
+    "gusti",
+    "meden",
+    "cop",
+    "brezalkoholna",
+    "alkohol",
+    "pivo",
+    "vino",
+    "žganje",
+    "slivovka",
+    "sadje",
+    "zelenjava",
+    "spar free from",
+    "spar veggie",
+    "spar enjoy",
+    "despar",
+    "mercator",
+    "m klasik",
+    "m bio",
+    "lumpi",
+    "dona",
+    "rondo",
+    "tuš",
+    "tus",
+    "tušev izbor",
+    "tuš premium",
+    "aro",
+    "tip",
+    "k classic",
+    "k bio",
+    "ja",
+    "gut & günstig",
+    "milbona",
+    "pilos",
+    "pikok",
+    "chef select",
+    "deluxe",
+    "cien",
+    "w5",
+    "denkmit",
+    "balea",
+    "alverde",
     # ===== BIO IN EKO =====
-    "bio", "eko", "organic", "demeter", "biodar", "alnatura",
-    "hofer bio", "spar natur pur", "naturland",
-
+    "bio",
+    "eko",
+    "organic",
+    "demeter",
+    "biodar",
+    "alnatura",
+    "hofer bio",
+    "spar natur pur",
+    "naturland",
     # ===== DRUGE ZNANE ZNAMKE =====
-    "dr oetker", "dr. oetker", "oetker", "knorr", "maggi", "podravka",
-    "vegeta", "maestro", "dolcela", "c vitamini",
+    "dr oetker",
+    "dr. oetker",
+    "oetker",
+    "knorr",
+    "maggi",
+    "podravka",
+    "vegeta",
+    "maestro",
+    "dolcela",
+    "c vitamini",
 }
 
 # Pretvori v set za hitrejše iskanje
@@ -174,37 +629,57 @@ KNOWN_BRANDS_SET = set(b.lower() for b in KNOWN_BRANDS)
 
 BRAND_CANONICAL = {
     # Coca-Cola variante
-    "coca-cola": "cocacola", "coca cola": "cocacola", "coke": "cocacola",
-    "pepsi cola": "pepsi", "pepsi-cola": "pepsi",
+    "coca-cola": "cocacola",
+    "coca cola": "cocacola",
+    "coke": "cocacola",
+    "pepsi cola": "pepsi",
+    "pepsi-cola": "pepsi",
     # Nescafe variante
-    "nescafe": "nescafe", "nescafé": "nescafe",
+    "nescafe": "nescafe",
+    "nescafé": "nescafe",
     # Kellogg's variante
-    "kelloggs": "kelloggs", "kellogg's": "kelloggs",
+    "kelloggs": "kelloggs",
+    "kellogg's": "kelloggs",
     # Nestlé variante
-    "nestle": "nestle", "nestlé": "nestle",
+    "nestle": "nestle",
+    "nestlé": "nestle",
     # L'Oreal variante
-    "loreal": "loreal", "l'oreal": "loreal",
+    "loreal": "loreal",
+    "l'oreal": "loreal",
     # Laško variante
-    "laško": "lasko", "lasko": "lasko",
+    "laško": "lasko",
+    "lasko": "lasko",
     # Hellmann's variante
-    "hellmann's": "hellmanns", "hellmanns": "hellmanns",
+    "hellmann's": "hellmanns",
+    "hellmanns": "hellmanns",
     # Dr. Oetker variante
-    "dr oetker": "droetker", "dr. oetker": "droetker", "oetker": "droetker",
+    "dr oetker": "droetker",
+    "dr. oetker": "droetker",
+    "oetker": "droetker",
     # Head & Shoulders variante
-    "head shoulders": "headshoulders", "head & shoulders": "headshoulders",
+    "head shoulders": "headshoulders",
+    "head & shoulders": "headshoulders",
     # Uncle Ben's variante
-    "uncle bens": "unclebens", "uncle ben's": "unclebens",
+    "uncle bens": "unclebens",
+    "uncle ben's": "unclebens",
     # Tuš variante
-    "tuš": "tus", "tus": "tus", "tušev izbor": "tus", "tuš premium": "tus",
+    "tuš": "tus",
+    "tus": "tus",
+    "tušev izbor": "tus",
+    "tuš premium": "tus",
     # Kraš variante
-    "kraš": "kras", "kras": "kras",
+    "kraš": "kras",
+    "kras": "kras",
     # Čoko variante
-    "čoko": "coko", "čokolešnik": "cokolesnik",
+    "čoko": "coko",
+    "čokolešnik": "cokolesnik",
     # Jägermeister variante
-    "jägermeister": "jagermeister", "jagermeister": "jagermeister",
+    "jägermeister": "jagermeister",
+    "jagermeister": "jagermeister",
     # Gut & Günstig variante
     "gut & günstig": "gutgunstig",
 }
+
 
 def get_canonical_brand(brand: str) -> str:
     """Vrni kanonično obliko blagovne znamke"""
@@ -219,6 +694,7 @@ def get_canonical_brand(brand: str) -> str:
     if UNIDECODE_AVAILABLE:
         normalized = unidecode(normalized)
     return normalized
+
 
 # Ustvari dict za hitro iskanje (podporna lista variant)
 BRAND_VARIANTS = {}
@@ -254,25 +730,34 @@ UNIT_PATTERNS = {
     r"(\d+(?:[,.]\d+)?)\s*g\b": ("g", 1),
     r"(\d+(?:[,.]\d+)?)\s*dag\b": ("g", 10),
     r"(\d+(?:[,.]\d+)?)\s*dkg\b": ("g", 10),
-
     # Volumen
     r"(\d+(?:[,.]\d+)?)\s*l\b": ("ml", 1000),
     r"(\d+(?:[,.]\d+)?)\s*ml\b": ("ml", 1),
     r"(\d+(?:[,.]\d+)?)\s*cl\b": ("ml", 10),
     r"(\d+(?:[,.]\d+)?)\s*dl\b": ("ml", 100),
-
     # Kosi
     r"(\d+)\s*(?:kos|kom|pcs?|st|kosov|komadov)\b": ("kos", 1),
 }
 
 # Normalizacija enot
 UNIT_NORMALIZE = {
-    "liter": "l", "litre": "l", "litrov": "l", "litra": "l",
-    "gram": "g", "gramov": "g", "grama": "g",
-    "kilogram": "kg", "kilogramov": "kg",
-    "mililiter": "ml", "mililitrov": "ml",
-    "deciliter": "dl", "centiliter": "cl",
-    "kosov": "kos", "komad": "kos", "komada": "kos", "piece": "kos",
+    "liter": "l",
+    "litre": "l",
+    "litrov": "l",
+    "litra": "l",
+    "gram": "g",
+    "gramov": "g",
+    "grama": "g",
+    "kilogram": "kg",
+    "kilogramov": "kg",
+    "mililiter": "ml",
+    "mililitrov": "ml",
+    "deciliter": "dl",
+    "centiliter": "cl",
+    "kosov": "kos",
+    "komad": "kos",
+    "komada": "kos",
+    "piece": "kos",
 }
 
 
@@ -280,36 +765,93 @@ UNIT_NORMALIZE = {
 # PRODUCT NORMALIZER
 # ============================================
 
+
 class ProductNormalizer:
     """Normalizira ime izdelka za boljše ujemanje"""
 
     STOPWORDS = {
         # Slovenščina
-        "za", "in", "ali", "z", "s", "iz", "po", "na", "od", "do", "pri",
-        "kot", "brez", "samo", "še", "tudi", "lahko", "pa", "ter", "je",
+        "za",
+        "in",
+        "ali",
+        "z",
+        "s",
+        "iz",
+        "po",
+        "na",
+        "od",
+        "do",
+        "pri",
+        "kot",
+        "brez",
+        "samo",
+        "še",
+        "tudi",
+        "lahko",
+        "pa",
+        "ter",
+        "je",
         # Opisi
-        "nov", "nova", "novo", "novi", "nove",
-        "akcija", "akcijski", "akcijska", "promo",
-        "super", "extra", "premium", "klasik", "classic", "original",
-        "family", "pack", "maxi", "mini", "xxl", "xl", "jumbo", "mega",
+        "nov",
+        "nova",
+        "novo",
+        "novi",
+        "nove",
+        "akcija",
+        "akcijski",
+        "akcijska",
+        "promo",
+        "super",
+        "extra",
+        "premium",
+        "klasik",
+        "classic",
+        "original",
+        "family",
+        "pack",
+        "maxi",
+        "mini",
+        "xxl",
+        "xl",
+        "jumbo",
+        "mega",
         # Trgovine
-        "spar", "mercator", "tus", "tuš", "hofer", "lidl",
+        "spar",
+        "mercator",
+        "tus",
+        "tuš",
+        "hofer",
+        "lidl",
     }
 
     SYNONYMS = {
         # Mleko
-        "polnomastno": "3.5%", "polnomastni": "3.5%",
-        "delno posneto": "1.5%", "pol posneto": "1.5%",
-        "posneto": "0.5%", "low fat": "0.5%",
-        "m.m.": "", "mlečne maščobe": "", "maščobe": "",
+        "polnomastno": "3.5%",
+        "polnomastni": "3.5%",
+        "delno posneto": "1.5%",
+        "pol posneto": "1.5%",
+        "posneto": "0.5%",
+        "low fat": "0.5%",
+        "m.m.": "",
+        "mlečne maščobe": "",
+        "maščobe": "",
         # Meso
-        "piščanec": "piščančje", "piščančji": "piščančje",
-        "goveje": "govedina", "goveja": "govedina", "beef": "govedina",
-        "svinjsko": "svinjina", "svinjska": "svinjina", "pork": "svinjina",
-        "puranje": "puran", "turkey": "puran",
+        "piščanec": "piščančje",
+        "piščančji": "piščančje",
+        "goveje": "govedina",
+        "goveja": "govedina",
+        "beef": "govedina",
+        "svinjsko": "svinjina",
+        "svinjska": "svinjina",
+        "pork": "svinjina",
+        "puranje": "puran",
+        "turkey": "puran",
         # Splošno
-        "bio": "ekološki", "eko": "ekološki", "organic": "ekološki",
-        "brez glutena": "gluten free", "lactose free": "brez laktoze",
+        "bio": "ekološki",
+        "eko": "ekološki",
+        "organic": "ekološki",
+        "brez glutena": "gluten free",
+        "lactose free": "brez laktoze",
     }
 
     @staticmethod
@@ -368,9 +910,11 @@ class ProductNormalizer:
 # PRODUCT EXTRACTOR
 # ============================================
 
+
 @dataclass
 class ProductFeatures:
     """Ekstrahirane lastnosti izdelka"""
+
     brand: Optional[str] = None
     quantity: Optional[float] = None
     unit: Optional[str] = None
@@ -388,30 +932,135 @@ class ProductExtractor:
     PRODUCT_TYPES = {
         "mleko": ["mleko", "milk", "mlijeko", "mleka"],
         "jogurt": ["jogurt", "yogurt", "joghurt", "skyr", "kefir"],
-        "sir": ["sir", "cheese", "parmezan", "gauda", "edamec", "feta", "mozzarella", "mascarpone", "ricotta"],
+        "sir": [
+            "sir",
+            "cheese",
+            "parmezan",
+            "gauda",
+            "edamec",
+            "feta",
+            "mozzarella",
+            "mascarpone",
+            "ricotta",
+        ],
         "maslo": ["maslo", "butter", "margarina", "margarine"],
         "smetana": ["smetana", "cream", "vrhnje", "kisla smetana"],
         "sok": ["sok", "juice", "nektar", "nectar", "smoothie"],
-        "gazirana": ["coca-cola", "coca cola", "pepsi", "fanta", "sprite", "schweppes", "7up", "mirinda", "cockta", "pipi", "cedevita"],
+        "gazirana": [
+            "coca-cola",
+            "coca cola",
+            "pepsi",
+            "fanta",
+            "sprite",
+            "schweppes",
+            "7up",
+            "mirinda",
+            "cockta",
+            "pipi",
+            "cedevita",
+        ],
         "energijska": ["red bull", "monster", "hell", "burn", "rockstar", "energy"],
-        "voda": ["voda", "water", "mineralna", "gazirana", "naravna", "radenska", "donat", "jana"],
-        "pivo": ["pivo", "beer", "ale", "lager", "radler", "pils", "union", "laško", "heineken"],
+        "voda": [
+            "voda",
+            "water",
+            "mineralna",
+            "gazirana",
+            "naravna",
+            "radenska",
+            "donat",
+            "jana",
+        ],
+        "pivo": [
+            "pivo",
+            "beer",
+            "ale",
+            "lager",
+            "radler",
+            "pils",
+            "union",
+            "laško",
+            "heineken",
+        ],
         "vino": ["vino", "wine", "rdece", "belo", "rose"],
-        "cokolada": ["cokolada", "chocolate", "čokolada", "kakav", "cocoa", "milka", "lindt", "gorenjka"],
-        "kava": ["kava", "coffee", "espresso", "cappuccino", "latte", "nescafe", "jacobs", "barcaffe"],
-        "caj": ["caj", "tea", "čaj", "zeleni", "črni", "zeliščni", "lipton", "teekanne"],
+        "cokolada": [
+            "cokolada",
+            "chocolate",
+            "čokolada",
+            "kakav",
+            "cocoa",
+            "milka",
+            "lindt",
+            "gorenjka",
+        ],
+        "kava": [
+            "kava",
+            "coffee",
+            "espresso",
+            "cappuccino",
+            "latte",
+            "nescafe",
+            "jacobs",
+            "barcaffe",
+        ],
+        "caj": [
+            "caj",
+            "tea",
+            "čaj",
+            "zeleni",
+            "črni",
+            "zeliščni",
+            "lipton",
+            "teekanne",
+        ],
         "kruh": ["kruh", "bread", "toast", "žemlja", "zemlja", "pecivo"],
         "moka": ["moka", "flour", "moko", "bela", "polnozrnata"],
         "riz": ["riz", "rice", "riza", "basmati", "jasmin"],
-        "testenine": ["testenine", "pasta", "špageti", "spaghetti", "makaroni", "penne", "fusilli", "tagliatelle", "barilla"],
+        "testenine": [
+            "testenine",
+            "pasta",
+            "špageti",
+            "spaghetti",
+            "makaroni",
+            "penne",
+            "fusilli",
+            "tagliatelle",
+            "barilla",
+        ],
         "olje": ["olje", "oil", "olivno", "soncnicno", "repicno"],
         "kis": ["kis", "vinegar", "balzamik", "jabolcni"],
         "sol": ["sol", "salt", "morska", "himalajska"],
         "sladkor": ["sladkor", "sugar", "cukor", "rjavi", "beli"],
         "jajca": ["jajca", "eggs", "jajce", "prostorejne"],
-        "meso": ["meso", "piščanec", "piščančje", "govedina", "svinjina", "puran", "riba", "file", "steak", "zrezek"],
-        "namaz": ["nutella", "lino lada", "eurokrem", "marmelada", "džem", "med", "namaz"],
-        "pecivo": ["keksi", "piškoti", "napolitanke", "oreo", "domačica", "jaffa", "croissant"],
+        "meso": [
+            "meso",
+            "piščanec",
+            "piščančje",
+            "govedina",
+            "svinjina",
+            "puran",
+            "riba",
+            "file",
+            "steak",
+            "zrezek",
+        ],
+        "namaz": [
+            "nutella",
+            "lino lada",
+            "eurokrem",
+            "marmelada",
+            "džem",
+            "med",
+            "namaz",
+        ],
+        "pecivo": [
+            "keksi",
+            "piškoti",
+            "napolitanke",
+            "oreo",
+            "domačica",
+            "jaffa",
+            "croissant",
+        ],
     }
 
     @staticmethod
@@ -440,7 +1089,9 @@ class ProductExtractor:
             features.brand = get_canonical_brand(found_brand)
 
         # 2. Najdi količino in enoto
-        pack_match = re.search(r"(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(g|ml|l|kg|cl|dl)", normalized)
+        pack_match = re.search(
+            r"(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(g|ml|l|kg|cl|dl)", normalized
+        )
         if pack_match:
             features.pack_count = int(pack_match.group(1))
             size = float(pack_match.group(2).replace(",", "."))
@@ -494,7 +1145,9 @@ class ProductExtractor:
 
         # 5. Ključne besede
         words = normalized.split()
-        features.keywords = [w for w in words if len(w) > 2 and not w.replace(".", "").isdigit()]
+        features.keywords = [
+            w for w in words if len(w) > 2 and not w.replace(".", "").isdigit()
+        ]
 
         # 6. Image hash (za ujemanje po slikah)
         if image_url:
@@ -539,6 +1192,7 @@ class ProductExtractor:
 # ============================================
 # PRODUCT SIGNATURE
 # ============================================
+
 
 class ProductSignature:
     """Ustvari unikaten podpis za izdelek"""
@@ -587,15 +1241,16 @@ class ProductSignature:
 # PRODUCT MATCHER - ULTIMATE
 # ============================================
 
+
 class ProductMatcher:
     """
     ULTIMATE Product Matcher z multi-pass algoritmom.
     """
 
     # Pragovi
-    EXACT_MATCH_THRESHOLD = 95      # Praktično identično
-    HIGH_MATCH_THRESHOLD = 85       # Zelo verjetno isto
-    MATCH_THRESHOLD = 72            # Verjetno isto
+    EXACT_MATCH_THRESHOLD = 95  # Praktično identično
+    HIGH_MATCH_THRESHOLD = 88  # Zelo verjetno isto (povišano)
+    MATCH_THRESHOLD = 75  # Verjetno isto (povišano za natančnost)
 
     def __init__(self):
         self.products = []
@@ -605,9 +1260,9 @@ class ProductMatcher:
 
         # Indeksi za hitrejše iskanje
         self.signature_index = defaultdict(list)  # signature -> [product_ids]
-        self.brand_index = defaultdict(list)      # brand -> [product_ids]
-        self.image_index = defaultdict(list)      # image_hash -> [product_ids]
-        self.type_index = defaultdict(list)       # product_type -> [product_ids]
+        self.brand_index = defaultdict(list)  # brand -> [product_ids]
+        self.image_index = defaultdict(list)  # image_hash -> [product_ids]
+        self.type_index = defaultdict(list)  # product_type -> [product_ids]
 
     def add_product(self, product: dict) -> str:
         """Dodaj izdelek in vrni match_id"""
@@ -641,7 +1296,9 @@ class ProductMatcher:
             self.type_index[features.product_type].append(product_id)
 
         # Multi-pass matching
-        match_id = self._find_match_multipass(product_id, normalized, signature, features, tokens, store)
+        match_id = self._find_match_multipass(
+            product_id, normalized, signature, features, tokens, store
+        )
 
         if match_id:
             product["match_id"] = match_id
@@ -665,7 +1322,7 @@ class ProductMatcher:
         signature: str,
         features: ProductFeatures,
         tokens: Set[str],
-        store: str
+        store: str,
     ) -> Optional[str]:
         """
         Multi-pass matching algoritem:
@@ -744,7 +1401,9 @@ class ProductMatcher:
             # Token overlap check (hitro)
             other_tokens = other.get("_tokens", set())
             if tokens and other_tokens:
-                overlap = len(tokens & other_tokens) / max(len(tokens), len(other_tokens))
+                overlap = len(tokens & other_tokens) / max(
+                    len(tokens), len(other_tokens)
+                )
                 if overlap < 0.3:  # Premalo skupnih tokenov
                     continue
 
@@ -790,7 +1449,9 @@ class ProductMatcher:
 
         return True
 
-    def _validate_features_match(self, f1: ProductFeatures, f2: ProductFeatures) -> bool:
+    def _validate_features_match(
+        self, f1: ProductFeatures, f2: ProductFeatures
+    ) -> bool:
         """Validiraj ujemanje lastnosti"""
         if not f1 or not f2:
             return True
@@ -803,7 +1464,9 @@ class ProductMatcher:
 
         return True
 
-    def _validate_quantity_match(self, f1: ProductFeatures, f2: ProductFeatures) -> bool:
+    def _validate_quantity_match(
+        self, f1: ProductFeatures, f2: ProductFeatures
+    ) -> bool:
         """Preveri ali se količini ujemata"""
         if not f1 or not f2:
             return True
@@ -838,19 +1501,27 @@ class ProductMatcher:
 
             if (i + 1) % 500 == 0:
                 multi = sum(1 for ids in self.matches.values() if len(ids) > 1)
-                print(f"[Matcher] {i + 1}/{len(products)} - {len(self.matches)} skupin, {multi} v 2+ trg")
+                print(
+                    f"[Matcher] {i + 1}/{len(products)} - {len(self.matches)} skupin, {multi} v 2+ trg"
+                )
 
         # Statistika
         total_matches = len(self.matches)
         multi_store = sum(1 for ids in self.matches.values() if len(ids) > 1)
-        three_stores = sum(1 for ids in self.matches.values() if len(set(self.products[i].get("trgovina") for i in ids)) >= 3)
+        three_stores = sum(
+            1
+            for ids in self.matches.values()
+            if len(set(self.products[i].get("trgovina") for i in ids)) >= 3
+        )
 
         print(f"[Matcher] Končano!")
         print(f"  - Unikatnih izdelkov:    {total_matches}")
         print(f"  - V 2+ trgovinah:        {multi_store}")
         print(f"  - V vseh 3 trgovinah:    {three_stores}")
         if total_matches > 0:
-            print(f"  - Uspešnost ujemanja:    {multi_store / total_matches * 100:.1f}%")
+            print(
+                f"  - Uspešnost ujemanja:    {multi_store / total_matches * 100:.1f}%"
+            )
 
         return self.products
 
@@ -897,6 +1568,7 @@ class ProductMatcher:
 # CONVENIENCE FUNCTIONS
 # ============================================
 
+
 def match_products(products: List[dict]) -> List[dict]:
     """Glavna funkcija - procesira izdelke in doda match_id"""
     matcher = ProductMatcher()
@@ -924,18 +1596,41 @@ def extract_product_features(name: str) -> ProductFeatures:
 
 if __name__ == "__main__":
     test_products = [
-        {"ime": "Alpsko mleko 3,5% m.m. 1L", "trgovina": "Spar", "redna_cena": 1.29, "slika": "https://example.com/alpsko-mleko-1l.jpg"},
-        {"ime": "Mleko ALPSKO polnomastno 3,5% 1 liter", "trgovina": "Mercator", "redna_cena": 1.35, "slika": "https://example.com/alpsko-1000ml.jpg"},
-        {"ime": "ALPSKO MLEKO polnomastno 1l 3.5%", "trgovina": "Tuš", "redna_cena": 1.25, "slika": "https://example.com/alpsko_mleko_1l.jpg"},
+        {
+            "ime": "Alpsko mleko 3,5% m.m. 1L",
+            "trgovina": "Spar",
+            "redna_cena": 1.29,
+            "slika": "https://example.com/alpsko-mleko-1l.jpg",
+        },
+        {
+            "ime": "Mleko ALPSKO polnomastno 3,5% 1 liter",
+            "trgovina": "Mercator",
+            "redna_cena": 1.35,
+            "slika": "https://example.com/alpsko-1000ml.jpg",
+        },
+        {
+            "ime": "ALPSKO MLEKO polnomastno 1l 3.5%",
+            "trgovina": "Tuš",
+            "redna_cena": 1.25,
+            "slika": "https://example.com/alpsko_mleko_1l.jpg",
+        },
         {"ime": "Coca-Cola 1,5L", "trgovina": "Spar", "redna_cena": 2.49},
         {"ime": "Coca Cola 1.5 liter", "trgovina": "Mercator", "redna_cena": 2.59},
         {"ime": "COCA-COLA 1,5l", "trgovina": "Tuš", "redna_cena": 2.39},
         {"ime": "Nutella 400g", "trgovina": "Spar", "redna_cena": 4.99},
         {"ime": "NUTELLA 400 g", "trgovina": "Tuš", "redna_cena": 5.19},
         {"ime": "Jogurt Activia jagoda 125g", "trgovina": "Spar", "redna_cena": 0.89},
-        {"ime": "ACTIVIA jogurt z jagodami 125g", "trgovina": "Mercator", "redna_cena": 0.95},
+        {
+            "ime": "ACTIVIA jogurt z jagodami 125g",
+            "trgovina": "Mercator",
+            "redna_cena": 0.95,
+        },
         {"ime": "Barilla Spaghetti No.5 500g", "trgovina": "Spar", "redna_cena": 1.99},
-        {"ime": "BARILLA špageti št. 5 500g", "trgovina": "Mercator", "redna_cena": 2.09},
+        {
+            "ime": "BARILLA špageti št. 5 500g",
+            "trgovina": "Mercator",
+            "redna_cena": 2.09,
+        },
         {"ime": "Barilla Spaghetti 500 g", "trgovina": "Tuš", "redna_cena": 1.95},
     ]
 
@@ -955,5 +1650,5 @@ if __name__ == "__main__":
     for match_id, products in groups.items():
         print(f"\n{match_id}:")
         for p in products:
-            price = p.get('akcijska_cena') or p.get('redna_cena')
+            price = p.get("akcijska_cena") or p.get("redna_cena")
             print(f"  [{p['trgovina']:10}] {p['ime'][:45]:45} - {price:.2f} €")

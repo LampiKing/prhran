@@ -2,6 +2,7 @@
 PrHran Scraper Configuration
 Konfiguracija za avtomatski scraper
 """
+
 import os
 from dotenv import load_dotenv
 
@@ -44,7 +45,7 @@ STORES = {
         ],
     },
     "Tus": {
-        "base_url": "https://www.hitrinakup.si",
+        "base_url": "https://hitrinakup.com",
         "categories": [
             "/kategorija/sadje-zelenjava",
             "/kategorija/mlecni-izdelki",

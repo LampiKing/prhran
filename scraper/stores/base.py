@@ -15,6 +15,7 @@ FEATURES:
 - Metrics collection
 - Adaptive delays glede na response time
 """
+
 import re
 import os
 import time
@@ -25,17 +26,24 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable, Any, List, Dict, Tuple
 from dataclasses import dataclass, field, asdict
-from playwright.sync_api import Page, ElementHandle, TimeoutError as PlaywrightTimeout, Response
+from playwright.sync_api import (
+    Page,
+    ElementHandle,
+    TimeoutError as PlaywrightTimeout,
+    Response,
+)
 
 
 class ScraperError(Exception):
     """Custom scraper exception"""
+
     pass
 
 
 @dataclass
 class ScrapingMetrics:
     """Metrike scrapanja za analizo"""
+
     start_time: datetime = None
     end_time: datetime = None
     pages_scraped: int = 0
@@ -57,6 +65,7 @@ class ScrapingMetrics:
 @dataclass
 class ProductQuality:
     """Ocena kvalitete podatkov izdelka"""
+
     has_name: bool = False
     has_price: bool = False
     has_image: bool = False
@@ -120,10 +129,23 @@ class BulletproofScraper:
     # NE blokiraj stylesheet-ov, potrebni so za pravilno delovanje!
     BLOCKED_RESOURCE_TYPES = []  # Nič ne blokiraj
     BLOCKED_URLS = [
-        "google-analytics", "googletagmanager", "facebook", "doubleclick",
-        "analytics", "tracking", "hotjar", "clarity", "mouseflow",
-        "hubspot", "intercom", "crisp", "drift", "tawk",
-        "ads", "advertising", "banner",
+        "google-analytics",
+        "googletagmanager",
+        "facebook",
+        "doubleclick",
+        "analytics",
+        "tracking",
+        "hotjar",
+        "clarity",
+        "mouseflow",
+        "hubspot",
+        "intercom",
+        "crisp",
+        "drift",
+        "tawk",
+        "ads",
+        "advertising",
+        "banner",
     ]
 
     # ==================== PROGRESS CONFIG ====================
@@ -150,7 +172,12 @@ class BulletproofScraper:
         self.checkpoints_dir = self.base_dir / "checkpoints"
 
         # Create directories
-        for d in [self.progress_dir, self.screenshots_dir, self.logs_dir, self.checkpoints_dir]:
+        for d in [
+            self.progress_dir,
+            self.screenshots_dir,
+            self.logs_dir,
+            self.checkpoints_dir,
+        ]:
             d.mkdir(exist_ok=True)
 
         # State
@@ -175,6 +202,7 @@ class BulletproofScraper:
 
     def _setup_network_optimization(self):
         """Blokiraj nepotrebne requeste za hitrejše nalaganje"""
+
         def handle_route(route):
             request = route.request
             resource_type = request.resource_type
@@ -223,7 +251,7 @@ class BulletproofScraper:
             print(log_line, flush=True)
         except UnicodeEncodeError:
             # Fallback: remove problematic characters
-            safe_line = log_line.encode('ascii', 'replace').decode('ascii')
+            safe_line = log_line.encode("ascii", "replace").decode("ascii")
             print(safe_line, flush=True)
 
         # File output
@@ -267,7 +295,9 @@ class BulletproofScraper:
 
     # ==================== SCREENSHOTS ====================
 
-    def take_screenshot(self, name: str = None, on_error: bool = False) -> Optional[str]:
+    def take_screenshot(
+        self, name: str = None, on_error: bool = False
+    ) -> Optional[str]:
         """Naredi screenshot za debugging"""
         if on_error and not self.SCREENSHOT_ON_ERROR:
             return None
@@ -278,7 +308,9 @@ class BulletproofScraper:
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             suffix = f"_error" if on_error else ""
-            filename = f"{self.STORE_NAME.lower()}_{name or 'page'}_{timestamp}{suffix}.png"
+            filename = (
+                f"{self.STORE_NAME.lower()}_{name or 'page'}_{timestamp}{suffix}.png"
+            )
             filepath = self.screenshots_dir / filename
 
             self.page.screenshot(path=str(filepath), full_page=True)
@@ -293,7 +325,9 @@ class BulletproofScraper:
 
     # ==================== SMART WAITING ====================
 
-    def smart_wait(self, selector: str = None, timeout: int = 10000, state: str = "visible") -> bool:
+    def smart_wait(
+        self, selector: str = None, timeout: int = 10000, state: str = "visible"
+    ) -> bool:
         """
         Pametno čakanje - čakaj na element ali network idle.
         Boljše kot fiksni time.sleep()!
@@ -310,11 +344,15 @@ class BulletproofScraper:
             self.log(f"Smart wait error: {e}", "WARNING")
             return False
 
-    def wait_for_products(self, selectors: List[str], timeout: int = 15000) -> Optional[str]:
+    def wait_for_products(
+        self, selectors: List[str], timeout: int = 15000
+    ) -> Optional[str]:
         """Počakaj da se pojavijo izdelki - vrne prvi selector ki dela"""
         for selector in selectors:
             try:
-                self.page.wait_for_selector(selector, timeout=timeout // len(selectors), state="visible")
+                self.page.wait_for_selector(
+                    selector, timeout=timeout // len(selectors), state="visible"
+                )
                 # Preveri da je vsaj 1 element
                 elements = self.page.query_selector_all(selector)
                 if elements and len(elements) > 0:
@@ -355,7 +393,7 @@ class BulletproofScraper:
         *args,
         max_retries: int = None,
         screenshot_on_fail: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Any:
         """
         ULTIMATE retry z exponential backoff, jitter, in screenshots.
@@ -382,7 +420,10 @@ class BulletproofScraper:
                     jitter = delay * random.uniform(-0.2, 0.2)
                     delay += jitter
 
-                    self.log(f"Poskus {attempt + 1}/{max_retries + 1} ni uspel: {str(e)[:100]}", "WARNING")
+                    self.log(
+                        f"Poskus {attempt + 1}/{max_retries + 1} ni uspel: {str(e)[:100]}",
+                        "WARNING",
+                    )
                     self.log(f"Čakam {delay:.1f}s...", "WARNING")
 
                     time.sleep(delay)
@@ -394,12 +435,14 @@ class BulletproofScraper:
                     if screenshot_on_fail:
                         self.take_screenshot(f"error_{func.__name__}", on_error=True)
 
-                    self.errors.append({
-                        "function": func.__name__,
-                        "error": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                        "url": self.page.url,
-                    })
+                    self.errors.append(
+                        {
+                            "function": func.__name__,
+                            "error": str(e),
+                            "timestamp": datetime.now().isoformat(),
+                            "url": self.page.url,
+                        }
+                    )
 
         return None
 
@@ -423,8 +466,18 @@ class BulletproofScraper:
             title = self.page.title().lower()
             body_text = self.page.inner_text("body")[:1000].lower()
 
-            error_indicators = ["404", "not found", "error", "napaka", "ni najdeno", "blocked", "access denied"]
-            checks["no_error_page"] = not any(e in title or e in body_text for e in error_indicators)
+            error_indicators = [
+                "404",
+                "not found",
+                "error",
+                "napaka",
+                "ni najdeno",
+                "blocked",
+                "access denied",
+            ]
+            checks["no_error_page"] = not any(
+                e in title or e in body_text for e in error_indicators
+            )
 
             # Has content
             checks["has_content"] = len(body_text) > 500
@@ -434,7 +487,12 @@ class BulletproofScraper:
             checks["no_captcha"] = not any(c in body_text for c in captcha_indicators)
 
             # No blocked
-            blocked_indicators = ["blocked", "forbidden", "access denied", "too many requests"]
+            blocked_indicators = [
+                "blocked",
+                "forbidden",
+                "access denied",
+                "too many requests",
+            ]
             checks["no_blocked"] = not any(b in body_text for b in blocked_indicators)
 
         except Exception as e:
@@ -455,7 +513,9 @@ class BulletproofScraper:
 
     # ==================== SELF-HEALING SELECTORS ====================
 
-    def find_elements_smart(self, selectors: List[str], min_count: int = 1) -> Tuple[List[ElementHandle], str]:
+    def find_elements_smart(
+        self, selectors: List[str], min_count: int = 1
+    ) -> Tuple[List[ElementHandle], str]:
         """
         SELF-HEALING: Poskusi več selektorjev in vrni prvi ki dela.
         Če noben ne dela, poskusi najti podobne elemente.
@@ -471,15 +531,15 @@ class BulletproofScraper:
 
         # 2. Poskusi najti po atributih
         fallback_patterns = [
-            '[data-testid]',
-            '[data-product]',
-            '[data-item]',
+            "[data-testid]",
+            "[data-product]",
+            "[data-item]",
             '[class*="product"]',
             '[class*="item"]',
             '[class*="card"]',
-            'article',
-            '.product',
-            '.item',
+            "article",
+            ".product",
+            ".item",
         ]
 
         for pattern in fallback_patterns:
@@ -516,7 +576,7 @@ class BulletproofScraper:
                 continue
 
         # 2. Fallback - vzemi prvi heading
-        for tag in ['h1', 'h2', 'h3', 'h4', 'a[title]', 'a']:
+        for tag in ["h1", "h2", "h3", "h4", "a[title]", "a"]:
             try:
                 el = element.query_selector(tag)
                 if el:
@@ -533,8 +593,11 @@ class BulletproofScraper:
 
     # ==================== NAVIGATION ====================
 
-    def safe_goto(self, url: str, wait_until: str = "domcontentloaded", timeout: int = 30000) -> bool:
+    def safe_goto(
+        self, url: str, wait_until: str = "domcontentloaded", timeout: int = 30000
+    ) -> bool:
         """ULTIMATE varno nalaganje strani"""
+
         def _goto():
             start = time.time()
             response = self.page.goto(url, wait_until=wait_until, timeout=timeout)
@@ -569,6 +632,7 @@ class BulletproofScraper:
 
     def safe_click(self, selector: str, timeout: int = 5000) -> bool:
         """Varno klikanje"""
+
         def _click():
             el = self.page.wait_for_selector(selector, timeout=timeout, state="visible")
             if el:
@@ -604,25 +668,22 @@ class BulletproofScraper:
 
         cookie_selectors = [
             # SPAR specifično - CookieBot
-            '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
-            '#CybotCookiebotDialogBodyButtonAccept',
-            '#CybotCookiebotDialogBodyLevelButtonAccept',
-            'a#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
-            'a.CybotCookiebotDialogBodyLevelButton',
-            '.CybotCookiebotDialogBodyButton',
+            "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+            "#CybotCookiebotDialogBodyButtonAccept",
+            "#CybotCookiebotDialogBodyLevelButtonAccept",
+            "a#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+            "a.CybotCookiebotDialogBodyLevelButton",
+            ".CybotCookiebotDialogBodyButton",
             '[id*="CybotCookiebot"][id*="Allow"]',
             '[class*="CybotCookiebot"] a:has-text("Dovoli vse")',
             '[class*="CybotCookiebot"] button:has-text("Dovoli vse")',
-
             # OneTrust
-            '#onetrust-accept-btn-handler',
-            '#onetrust-accept-all-handler',
-            '.onetrust-accept-btn',
-
+            "#onetrust-accept-btn-handler",
+            "#onetrust-accept-all-handler",
+            ".onetrust-accept-btn",
             # Didomi
-            '#didomi-notice-agree-button',
-            '.didomi-continue-without-agreeing',
-
+            "#didomi-notice-agree-button",
+            ".didomi-continue-without-agreeing",
             # Generic class patterns
             'button[class*="cookie"][class*="accept"]',
             'button[class*="accept"][class*="cookie"]',
@@ -633,14 +694,12 @@ class BulletproofScraper:
             '[class*="cookie-notice"] button[class*="accept"]',
             '[class*="gdpr"] button[class*="accept"]',
             '[class*="privacy"] button[class*="accept"]',
-
             # ID patterns
-            '#accept-cookies',
-            '#acceptCookies',
-            '#cookie-accept',
-            '#cookieAccept',
-            '#cookies-accept',
-
+            "#accept-cookies",
+            "#acceptCookies",
+            "#cookie-accept",
+            "#cookieAccept",
+            "#cookies-accept",
             # Slovenščina - več možnosti
             'button:has-text("Sprejmi vse")',
             'button:has-text("Sprejmi")',
@@ -653,7 +712,6 @@ class BulletproofScraper:
             'a:has-text("Dovoli vse")',
             'a:has-text("Sprejmi vse")',
             '*:has-text("Dovoli vse"):visible',
-
             # Angleščina
             'button:has-text("Accept all")',
             'button:has-text("Accept")',
@@ -663,7 +721,6 @@ class BulletproofScraper:
             'button:has-text("I agree")',
             'button:has-text("Agree")',
             'button:has-text("Got it")',
-
             # Aria labels
             'button[aria-label*="accept"]',
             'button[aria-label*="Accept"]',
@@ -701,78 +758,72 @@ class BulletproofScraper:
         """ULTIMATE SMART zapiranje popup-ov - skenira in zapre VSE"""
         self._smart_close_all_popups()
 
-    def _smart_close_all_popups(self, max_attempts: int = 5):
+    def _smart_close_all_popups(self, max_attempts: int = 3):
         """
-        PAMETEN POPUP CLOSER - skenira stran za popup-e in jih zapre.
-        Deluje kot pravi bot - išče modal/dialog elemente in najde X gumb.
+        PAMETEN POPUP CLOSER - zapre popup-e samo enkrat, ne v zanki!
         """
         closed_total = 0
 
-        for attempt in range(max_attempts):
-            closed_this_round = 0
+        # SAMO EN KROG - prepreči neskončno zapiranje
+        closed_this_round = 0
 
-            # KORAK 1: Najdi VSE vidne modale/dialoge/popupe
-            modal_selectors = [
-                '[role="dialog"]',
-                '[role="alertdialog"]',
-                '[class*="Modal"]',
-                '[class*="modal"]',
-                '[class*="Popup"]',
-                '[class*="popup"]',
-                '[class*="Dialog"]',
-                '[class*="dialog"]',
-                '[class*="Overlay"][class*="visible"]',
-                '[class*="overlay"][class*="active"]',
-                '[data-modal]',
-                '[data-popup]',
-                '[data-dialog]',
-            ]
+        # KORAK 1: Najdi VSE vidne modale/dialoge/popupe
+        # IZJEMI "splošni pogoji" in "pogoje uporabe" popupe - NE KLIKAJ!
+        modal_selectors = [
+            '[role="dialog"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[role="alertdialog"]',
+            '[class*="Modal"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="modal"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="Popup"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="popup"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="Dialog"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="dialog"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="Overlay"][class*="visible"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            '[class*="overlay"][class*="active"]:not([class*="terms"]):not([class*="conditions"]):not([class*="policy"]):not([class*="privacy"])',
+            "[data-modal]",
+            "[data-popup]",
+            "[data-dialog]",
+        ]
 
-            for modal_sel in modal_selectors:
-                try:
-                    modals = self.page.query_selector_all(modal_sel)
-                    for modal in modals:
-                        if modal.is_visible():
-                            if self._close_modal(modal):
-                                closed_this_round += 1
-                                time.sleep(0.3)
-                except:
-                    continue
-
-            # KORAK 2: Poišči samostojne X gumbe (izven modalov)
-            close_selectors = [
-                '[aria-label="close"]',
-                '[aria-label="Close"]',
-                '[aria-label="zapri"]',
-                '[aria-label="Zapri"]',
-                'button[class*="close"]',
-                'button[class*="Close"]',
-                '[class*="close-button"]',
-                '[class*="close-btn"]',
-                '[class*="modal-close"]',
-                'button:has-text("×")',
-                'button:has-text("✕")',
-                'button:has-text("✖")',
-            ]
-
-            for sel in close_selectors:
-                try:
-                    btns = self.page.query_selector_all(sel)
-                    for btn in btns[:2]:
-                        if btn.is_visible():
-                            btn.click()
+        for modal_sel in modal_selectors:
+            try:
+                modals = self.page.query_selector_all(modal_sel)
+                for modal in modals:
+                    if modal.is_visible():
+                        if self._close_modal(modal):
                             closed_this_round += 1
                             time.sleep(0.3)
-                except:
-                    continue
+            except:
+                continue
 
-            closed_total += closed_this_round
+        # KORAK 2: Poišči samostojne X gumbe (izven modalov)
+        close_selectors = [
+            '[aria-label="close"]',
+            '[aria-label="Close"]',
+            '[aria-label="zapri"]',
+            '[aria-label="Zapri"]',
+            'button[class*="close"]',
+            'button[class*="Close"]',
+            '[class*="close-button"]',
+            '[class*="close-btn"]',
+            '[class*="modal-close"]',
+            'button:has-text("×")',
+            'button:has-text("✕")',
+            'button:has-text("✖")',
+        ]
 
-            # Če nismo zaprli nič, končaj
-            if closed_this_round == 0:
-                break
+        for sel in close_selectors:
+            try:
+                btns = self.page.query_selector_all(sel)
+                for btn in btns[:2]:  # Samo prva 2 gumbe
+                    if btn.is_visible():
+                        btn.click()
+                        closed_this_round += 1
+                        time.sleep(0.3)
+            except:
+                continue
 
-            time.sleep(0.5)
+        closed_total += closed_this_round
 
         # KORAK 3: Escape kot fallback
         try:
@@ -799,7 +850,7 @@ class BulletproofScraper:
                 '[class*="close-button"]',
                 '[class*="close-btn"]',
                 '[class*="modal-close"]',
-                'button:first-child',  # X je pogosto prvi gumb
+                "button:first-child",  # X je pogosto prvi gumb
                 'svg[class*="close"]',
                 'button:has-text("×")',
                 'button:has-text("✕")',
@@ -817,12 +868,12 @@ class BulletproofScraper:
 
             # Poskusi kliknit prvi gumb (pogosto X)
             try:
-                first_btn = modal.query_selector('button')
+                first_btn = modal.query_selector("button")
                 if first_btn and first_btn.is_visible():
                     # Preveri da ni "submit" tipa
-                    btn_type = first_btn.get_attribute('type') or ''
+                    btn_type = first_btn.get_attribute("type") or ""
                     btn_text = first_btn.inner_text().strip()
-                    if btn_type != 'submit' and len(btn_text) < 5:
+                    if btn_type != "submit" and len(btn_text) < 5:
                         first_btn.click()
                         return True
             except:
@@ -861,7 +912,9 @@ class BulletproofScraper:
         q.has_unit = bool(unit)
 
         # Name length OK
-        q.name_length_ok = self.MIN_NAME_LENGTH < len(name) < self.MAX_NAME_LENGTH if name else False
+        q.name_length_ok = (
+            self.MIN_NAME_LENGTH < len(name) < self.MAX_NAME_LENGTH if name else False
+        )
 
         # Price reasonable
         price = regular_price or sale_price or 0
@@ -869,7 +922,15 @@ class BulletproofScraper:
 
         # Image URL valid
         if image:
-            bad_patterns = ["placeholder", "no-image", "noimage", "default", "loading", "blank", "1x1"]
+            bad_patterns = [
+                "placeholder",
+                "no-image",
+                "noimage",
+                "default",
+                "loading",
+                "blank",
+                "1x1",
+            ]
             q.image_url_valid = not any(p in image.lower() for p in bad_patterns)
 
         return q
@@ -914,9 +975,20 @@ class BulletproofScraper:
             return False
 
         bad_patterns = [
-            "placeholder", "no-image", "noimage", "default", "loading",
-            "spinner", "blank", "empty", "1x1", "pixel", "spacer",
-            "transparent", "grey", "gray",
+            "placeholder",
+            "no-image",
+            "noimage",
+            "default",
+            "loading",
+            "spinner",
+            "blank",
+            "empty",
+            "1x1",
+            "pixel",
+            "spacer",
+            "transparent",
+            "grey",
+            "gray",
         ]
         url_lower = url.lower()
         return not any(p in url_lower for p in bad_patterns)
@@ -1011,7 +1083,9 @@ class BulletproofScraper:
 
         if not self.checkpoint_file:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.checkpoint_file = self.checkpoints_dir / f"{self.STORE_NAME.lower()}_{timestamp}.json"
+            self.checkpoint_file = (
+                self.checkpoints_dir / f"{self.STORE_NAME.lower()}_{timestamp}.json"
+            )
 
         try:
             with open(self.checkpoint_file, "w", encoding="utf-8") as f:
@@ -1025,7 +1099,9 @@ class BulletproofScraper:
             path = Path(checkpoint_file)
         else:
             # Najdi najnovejši checkpoint
-            checkpoints = list(self.checkpoints_dir.glob(f"{self.STORE_NAME.lower()}_*.json"))
+            checkpoints = list(
+                self.checkpoints_dir.glob(f"{self.STORE_NAME.lower()}_*.json")
+            )
             if not checkpoints:
                 return False
             path = max(checkpoints, key=lambda p: p.stat().st_mtime)
@@ -1035,7 +1111,10 @@ class BulletproofScraper:
                 checkpoint = json.load(f)
 
             self.completed_categories = set(checkpoint.get("completed_categories", []))
-            self.log(f"Loaded checkpoint: {len(self.completed_categories)} kategorij že končanih", "SUCCESS")
+            self.log(
+                f"Loaded checkpoint: {len(self.completed_categories)} kategorij že končanih",
+                "SUCCESS",
+            )
             return True
         except Exception as e:
             self.log(f"Checkpoint load error: {e}", "WARNING")
@@ -1126,6 +1205,8 @@ class BulletproofScraper:
         """Override v podrazredu!"""
         raise NotImplementedError("Override scrape_all() in subclass")
 
-    def extract_product_data(self, element: ElementHandle, category: str = "") -> Optional[dict]:
+    def extract_product_data(
+        self, element: ElementHandle, category: str = ""
+    ) -> Optional[dict]:
         """Override v podrazredu!"""
         raise NotImplementedError("Override extract_product_data() in subclass")

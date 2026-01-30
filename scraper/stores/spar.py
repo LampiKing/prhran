@@ -16,6 +16,7 @@ BULLETPROOF FEATURES:
 - Anti-detection
 - Progress saving
 """
+
 import re
 import time
 from typing import Optional
@@ -52,25 +53,43 @@ class SparScraper(BulletproofScraper):
     # Glavne kategorije
     MAIN_CATEGORIES = list(CATEGORY_URLS.keys())
 
-    # BULLETPROOF selektorji - več možnosti za vsak element
+    # BULLETPROOF selektorji - MAKSIMALNA POKRITOST
     PRODUCT_SELECTORS = [
+        # SPAR specifični - glavni
         '[data-testid*="product"]',
+        '[data-testid*="tile"]',
+        '[data-testid*="item"]',
         '[class*="product-tile"]',
         '[class*="ProductTile"]',
         '[class*="product-card"]',
         '[class*="ProductCard"]',
-        '.tileOffer',
+        '[class*="product-item"]',
+        '[class*="ProductItem"]',
+        # Ant Design cards (SPAR uporablja Ant Design)
+        '[class*="ant-card"]',
+        ".ant-card",
+        '[class*="card"]',
+        # Generic elementi
+        ".tileOffer",
         'article[class*="product"]',
-        '[data-product-id]',
+        'article[class*="item"]',
+        "[data-product-id]",
+        "[data-item-id]",
         '[data-ga-action="click_product"]',
         'a[class*="lib-analytics-product"]',
-        '.product-item',
-        '.product',
+        ".product-item",
+        ".product",
+        ".item",
+        # Ultimate fallback
+        '[class*="item"]',
+        '[class*="box"]',
+        'div[class*="grid"] > div',
+        'li[class*="product"]',
     ]
 
     NAME_SELECTORS = [
-        '.lib-analytics-product-link',
-        '[data-ga-label]',
+        ".lib-analytics-product-link",
+        "[data-ga-label]",
         '[data-testid*="name"]',
         '[class*="product-name"]',
         '[class*="ProductName"]',
@@ -78,24 +97,60 @@ class SparScraper(BulletproofScraper):
         '[class*="ProductTitle"]',
         '[class*="productName"]',
         '[class*="title"]',
-        'h2 a', 'h3 a', 'h4 a',
-        'h2', 'h3', 'h4',
-        'a[title]',
+        "h2 a",
+        "h3 a",
+        "h4 a",
+        "h2",
+        "h3",
+        "h4",
+        "a[title]",
     ]
 
     IMAGE_SELECTORS = [
+        # SPAR specifični - high quality
         'img[data-testid*="product"]',
+        'img[data-testid*="image"]',
         'img[class*="product"]',
+        'img[class*="image"]',
         'img[data-src*="product"]',
+        'img[data-src*="image"]',
         'img[src*="product"]',
-        'img[data-src]',
-        'img[src]',
+        'img[src*="image"]',
+        # CDN specific
+        'img[src*="spar.si"]',
+        'img[src*="/media/"]',
+        'img[src*="/static/"]',
+        'img[src*="cdn"]',
+        # Lazy loading
+        "img[data-src]",
+        "img[data-lazy]",
+        'img[loading="lazy"]',
+        # Fallback
+        "img[src]",
+        "picture img",
+        ".image img",
+        ".picture img",
     ]
 
     PRICE_SELECTORS = [
-        '[class*="price"]',
+        # SPAR specifični
         '[data-testid*="price"]',
+        '[class*="price"]',
         '[class*="Price"]',
+        ".lib-product-price",
+        ".product-price",
+        ".price-current",
+        ".price-regular",
+        ".price-sale",
+        # Elementi z € znakom
+        '[class*="cena"]',
+        '[class*="euro"]',
+        "[data-price]",
+        'span:has-text("€")',
+        'div:has-text("€")',
+        # Fallback
+        '[class*="value"]',
+        '[class*="amount"]',
     ]
 
     def __init__(self, page: Page):
@@ -105,40 +160,33 @@ class SparScraper(BulletproofScraper):
     # ==================== NAVIGATION ====================
 
     def open_categories_menu(self) -> bool:
-        """BULLETPROOF odpiranje menija kategorij"""
+        """BULLETPROOF odpiranje menija kategorij - KLIK NA KATEGORIJE GUMB"""
         self.log("Odpiram meni kategorij...")
 
-        menu_selectors = [
+        # Klikni na "Kategorije" gumb levo zgoraj
+        category_selectors = [
             'button:has-text("Kategorije")',
             '[data-testid*="categories"]',
-            '[data-testid*="menu"]',
             '[class*="category-menu"] button',
-            '[class*="CategoryMenu"] button',
-            '[class*="categoryMenu"] button',
-            'button[class*="category"]',
-            'button[class*="Category"]',
-            '[class*="navigation"] button:has-text("Kategorije")',
             'nav button:has-text("Kategorije")',
             'header button:has-text("Kategorije")',
-            'button[aria-label*="kategorij"]',
-            'button[aria-label*="menu"]',
         ]
 
-        for selector in menu_selectors:
+        for selector in category_selectors:
             try:
                 btn = self.page.query_selector(selector)
                 if btn and btn.is_visible():
                     btn.click()
-                    self.random_delay(1.0, 1.5)
+                    self.random_delay(2.0, 3.0)  # Počakaj da se menu odpre
                     self.log("Meni kategorij odprt", "SUCCESS")
                     return True
-            except Exception as e:
+            except:
                 continue
 
-        # Fallback - poskusi text selector
+        # Fallback - text selector
         try:
             self.page.click('text="Kategorije"', timeout=5000)
-            self.random_delay(1.0, 1.5)
+            self.random_delay(2.0, 3.0)
             self.log("Meni kategorij odprt (text)", "SUCCESS")
             return True
         except:
@@ -181,11 +229,11 @@ class SparScraper(BulletproofScraper):
             try:
                 # Ant Design drawer close button
                 close_selectors = [
-                    '.ant-drawer-close',
+                    ".ant-drawer-close",
                     '[class*="ant-drawer"] .anticon-close',
                     '[class*="ant-drawer"] button[class*="close"]',
                     '[class*="drawer"] svg[class*="close"]',
-                    '.ant-modal-close',
+                    ".ant-modal-close",
                     '[class*="modal"] .anticon-close',
                 ]
                 for selector in close_selectors:
@@ -205,7 +253,9 @@ class SparScraper(BulletproofScraper):
             # 3. Poskusi Escape tipko SAMO za drawer (ne za 18+ modal!)
             try:
                 # Preveri ali je drawer odprt (ne modal za 18+!)
-                drawer = self.page.query_selector('.ant-drawer-open, [class*="drawer"][class*="open"]')
+                drawer = self.page.query_selector(
+                    '.ant-drawer-open, [class*="drawer"][class*="open"]'
+                )
                 if drawer:
                     self.page.keyboard.press("Escape")
                     self.log("Drawer zaprt z Escape", "SUCCESS")
@@ -248,7 +298,9 @@ class SparScraper(BulletproofScraper):
         for attempt in range(3):
             try:
                 # Najdi vse menu iteme
-                menu_items = self.page.query_selector_all('.ant-menu-submenu-title, .ant-menu-item')
+                menu_items = self.page.query_selector_all(
+                    ".ant-menu-submenu-title, .ant-menu-item"
+                )
 
                 for item in menu_items:
                     try:
@@ -268,7 +320,7 @@ class SparScraper(BulletproofScraper):
 
                             # DEBUG: Poišči VSE elemente z besedo "poglej" kjerkoli na strani
                             try:
-                                poglej_els = self.page.evaluate('''
+                                poglej_els = self.page.evaluate("""
                                     () => {
                                         const results = [];
                                         // Poišči VSE vidne elemente ki vsebujejo "poglej"
@@ -293,7 +345,7 @@ class SparScraper(BulletproofScraper):
                                         }
                                         return results.slice(0, 10);
                                     }
-                                ''')
+                                """)
                                 self.log(f"DEBUG elementi s 'poglej': {poglej_els}")
                             except Exception as e:
                                 self.log(f"DEBUG error: {e}")
@@ -305,7 +357,7 @@ class SparScraper(BulletproofScraper):
 
                             # Najprej poskusi JavaScript klik - najbolj zanesljivo
                             try:
-                                clicked = self.page.evaluate('''
+                                clicked = self.page.evaluate("""
                                     () => {
                                         const buttons = document.querySelectorAll('button');
                                         for (const btn of buttons) {
@@ -317,16 +369,20 @@ class SparScraper(BulletproofScraper):
                                         }
                                         return false;
                                     }
-                                ''')
+                                """)
                                 if clicked:
                                     self.log(f"Kliknil gumb z JS: Poglejte vse izdelke")
                                     time.sleep(2)
                                     # Počakaj da se stran naloži
                                     try:
-                                        self.page.wait_for_load_state("networkidle", timeout=10000)
+                                        self.page.wait_for_load_state(
+                                            "networkidle", timeout=10000
+                                        )
                                     except:
                                         pass
-                                    self.log(f"Odprl kategorijo: {category_name}", "SUCCESS")
+                                    self.log(
+                                        f"Odprl kategorijo: {category_name}", "SUCCESS"
+                                    )
                                     return (True, self.page.url)
                             except Exception as e:
                                 self.log(f"JS klik ni uspel: {e}", "WARNING")
@@ -346,10 +402,15 @@ class SparScraper(BulletproofScraper):
                                         btn.click()
                                         time.sleep(2)
                                         try:
-                                            self.page.wait_for_load_state("networkidle", timeout=10000)
+                                            self.page.wait_for_load_state(
+                                                "networkidle", timeout=10000
+                                            )
                                         except:
                                             pass
-                                        self.log(f"Odprl kategorijo: {category_name}", "SUCCESS")
+                                        self.log(
+                                            f"Odprl kategorijo: {category_name}",
+                                            "SUCCESS",
+                                        )
                                         return (True, self.page.url)
                                 except:
                                     continue
@@ -358,7 +419,7 @@ class SparScraper(BulletproofScraper):
                         continue
 
             except Exception as e:
-                self.log(f"Poskus {attempt+1} ni uspel: {e}", "WARNING")
+                self.log(f"Poskus {attempt + 1} ni uspel: {e}", "WARNING")
 
             time.sleep(0.5)
 
@@ -396,7 +457,7 @@ class SparScraper(BulletproofScraper):
                 time.sleep(2)
                 # Poskusi JS klik na gumb
                 try:
-                    clicked = self.page.evaluate('''
+                    clicked = self.page.evaluate("""
                         () => {
                             const buttons = document.querySelectorAll('button');
                             for (const btn of buttons) {
@@ -408,9 +469,12 @@ class SparScraper(BulletproofScraper):
                             }
                             return false;
                         }
-                    ''')
+                    """)
                     if clicked:
-                        self.log(f"Odprl kategorijo (JS hover + JS klik): {category_name}", "SUCCESS")
+                        self.log(
+                            f"Odprl kategorijo (JS hover + JS klik): {category_name}",
+                            "SUCCESS",
+                        )
                         time.sleep(2)
                         try:
                             self.page.wait_for_load_state("networkidle", timeout=10000)
@@ -450,16 +514,16 @@ class SparScraper(BulletproofScraper):
 
             # Na vsakih 10 scrollov preveri ali smo na dnu
             if i % 10 == 9:
-                is_at_bottom = self.page.evaluate('''
+                is_at_bottom = self.page.evaluate("""
                     () => {
                         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                         const scrollHeight = document.documentElement.scrollHeight;
                         const clientHeight = document.documentElement.clientHeight;
                         return scrollTop + clientHeight >= scrollHeight - 100;
                     }
-                ''')
+                """)
                 if is_at_bottom:
-                    self.log(f"Prišel do dna po {i+1} scrollih")
+                    self.log(f"Prišel do dna po {i + 1} scrollih")
                     break
 
         # Končni scroll čisto na dno
@@ -475,19 +539,16 @@ class SparScraper(BulletproofScraper):
         # SPAR specifični selektorji za paginacijo (ant-design)
         pagination_selectors = [
             # Ant design pagination
-            '.ant-pagination-next:not(.ant-pagination-disabled)',
-            '.ant-pagination-next button:not([disabled])',
-            'li.ant-pagination-next:not(.ant-pagination-disabled) button',
-
+            ".ant-pagination-next:not(.ant-pagination-disabled)",
+            ".ant-pagination-next button:not([disabled])",
+            "li.ant-pagination-next:not(.ant-pagination-disabled) button",
             # Aria labels
             'button[aria-label="Next"]',
             'button[aria-label="next"]',
             'a[aria-label="Naslednja stran"]',
-
             # Puščice
             '[class*="pagination"] [class*="next"]:not([disabled])',
             'button:has-text("›"):not([disabled])',
-
             # Generic
             'a:has-text("Naprej")',
             'button:has-text("Naprej")',
@@ -502,7 +563,11 @@ class SparScraper(BulletproofScraper):
                     disabled_attr = btn.get_attribute("disabled")
                     aria_disabled = btn.get_attribute("aria-disabled")
 
-                    if disabled_attr or aria_disabled == "true" or "disabled" in class_attr.lower():
+                    if (
+                        disabled_attr
+                        or aria_disabled == "true"
+                        or "disabled" in class_attr.lower()
+                    ):
                         continue
 
                     btn.click()
@@ -533,7 +598,14 @@ class SparScraper(BulletproofScraper):
                 return True
 
             # Besede za akcijo
-            discount_words = ["akcija", "znižano", "popust", "trajno nizka", "super cena", "ugodno"]
+            discount_words = [
+                "akcija",
+                "znižano",
+                "popust",
+                "trajno nizka",
+                "super cena",
+                "ugodno",
+            ]
             if any(w in text for w in discount_words):
                 return True
 
@@ -546,7 +618,9 @@ class SparScraper(BulletproofScraper):
                 '[class*="promo"]',
                 '[class*="action"]',
                 '[class*="badge"]',
-                'del', 's', 'strike',
+                "del",
+                "s",
+                "strike",
                 '[class*="old-price"]',
                 '[class*="oldPrice"]',
             ]
@@ -559,7 +633,9 @@ class SparScraper(BulletproofScraper):
         except:
             return False
 
-    def extract_product_data(self, element: ElementHandle, category: str = "") -> Optional[dict]:
+    def extract_product_data(
+        self, element: ElementHandle, category: str = ""
+    ) -> Optional[dict]:
         """
         BULLETPROOF ekstrakcija podatkov izdelka.
 
@@ -621,8 +697,15 @@ class SparScraper(BulletproofScraper):
             clean = re.sub(r"PC\d+\s*:?\s*\d+[,.]\d{2}\s*€?", " ", clean, flags=re.I)
 
             # Odstrani cene na enoto
-            clean = re.sub(r"\d+[,.]\d{2}\s*€?\s*/\s*\d*\s*(kg|kos|kom|l|ml|g|m)\b", " ", clean, flags=re.I)
-            clean = re.sub(r"(kg|kos|kom|l)\s+za\s+\d+[,.]\d{2}\s*€?", " ", clean, flags=re.I)
+            clean = re.sub(
+                r"\d+[,.]\d{2}\s*€?\s*/\s*\d*\s*(kg|kos|kom|l|ml|g|m)\b",
+                " ",
+                clean,
+                flags=re.I,
+            )
+            clean = re.sub(
+                r"(kg|kos|kom|l)\s+za\s+\d+[,.]\d{2}\s*€?", " ", clean, flags=re.I
+            )
             clean = re.sub(r"za\s+\d+[,.]\d{2}\s*€?\s*/?k?g", " ", clean, flags=re.I)
 
             # Odstrani teže (0.15KG, 500g, 1.5L, itd)
@@ -670,10 +753,10 @@ class SparScraper(BulletproofScraper):
                     img = element.query_selector(selector)
                     if img:
                         src = (
-                            img.get_attribute("data-src") or
-                            img.get_attribute("data-lazy-src") or
-                            img.get_attribute("src") or
-                            ""
+                            img.get_attribute("data-src")
+                            or img.get_attribute("data-lazy-src")
+                            or img.get_attribute("src")
+                            or ""
                         )
 
                         if src and not src.startswith("data:"):
@@ -689,7 +772,9 @@ class SparScraper(BulletproofScraper):
                     continue
 
             # ===== ENOTA (iz imena) =====
-            unit_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl|kos|kom)\b", name, re.I)
+            unit_match = re.search(
+                r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl|kos|kom)\b", name, re.I
+            )
             unit = ""
             if unit_match:
                 unit = f"{unit_match.group(1)}{unit_match.group(2).lower()}"
@@ -721,7 +806,9 @@ class SparScraper(BulletproofScraper):
                 if not elements or len(elements) < 3:
                     continue
 
-                self.log(f"Najdenih {len(elements)} elementov s selektorjem: {selector}")
+                self.log(
+                    f"Najdenih {len(elements)} elementov s selektorjem: {selector}"
+                )
 
                 for el in elements:
                     try:
@@ -754,7 +841,7 @@ class SparScraper(BulletproofScraper):
         return products
 
     def scrape_category(self, category_name: str) -> list[dict]:
-        """Scraping ene kategorije - HOVER + KLIK, z URL fallback"""
+        """Scraping ene kategorije - HOVER + KLIK na Poglejte vse izdelke + PAGINACIJA"""
         products = []
         self.current_category = category_name.title()
 
@@ -762,48 +849,13 @@ class SparScraper(BulletproofScraper):
         self.log(f"KATEGORIJA: {category_name}")
         self.log(f"=" * 50)
 
-        category_opened = False
-        category_url_from_menu = ""
+        # 1. Odpri meni kategorij
+        if not self.open_categories_menu():
+            return products
 
-        # Scroll na vrh strani
-        self.page.evaluate("window.scrollTo(0, 0)")
-        time.sleep(0.5)
-
-        # Odpri meni Kategorije
-        self.log("Odpiram meni kategorij...")
-        try:
-            self.page.click('button:has-text("Kategorije")', timeout=5000)
-            time.sleep(1.5)
-
-            # Hover na kategorijo + klik "Pokaži vse izdelke"
-            success, url = self.hover_and_click_category(category_name)
-            if success:
-                category_opened = True
-                if url:
-                    category_url_from_menu = url
-                    self.log(f"Pridobljen URL iz menija: {url}")
-        except Exception as e:
-            self.log(f"Ne najdem gumba Kategorije - poskusam direkten URL: {e}", "WARNING")
-
-        # FALLBACK: Direkten URL za kategorijo
-        if not category_opened:
-            # Najprej poskusi URL ki smo ga dobili iz menija
-            if category_url_from_menu:
-                full_url = category_url_from_menu if category_url_from_menu.startswith("http") else f"{self.BASE_URL}{category_url_from_menu}"
-                self.log(f"Fallback - URL iz menija: {full_url}")
-                if self.safe_goto(full_url, wait_until="networkidle", timeout=30000):
-                    category_opened = True
-                    self.log(f"Odprl kategorijo z URL iz menija: {category_name}", "SUCCESS")
-
-            # Potem poskusi preddefinirani URL
-            if not category_opened and category_name in self.CATEGORY_URLS:
-                category_url = f"{self.BASE_URL}{self.CATEGORY_URLS[category_name]}"
-                self.log(f"Fallback - preddefinirani URL: {category_url}")
-                if self.safe_goto(category_url, wait_until="networkidle", timeout=30000):
-                    category_opened = True
-                    self.log(f"Odprl kategorijo z direktnim URL: {category_name}", "SUCCESS")
-
-        if not category_opened:
+        # 2. Hover na kategorijo in klik na "Poglejte vse izdelke"
+        success = self.hover_and_click_category(category_name)
+        if not success:
             self.log(f"Ne morem odpreti kategorije: {category_name}", "ERROR")
             return products
 
@@ -820,7 +872,7 @@ class SparScraper(BulletproofScraper):
 
         # Scrapaj vse strani
         page_num = 1
-        max_pages = 50
+        max_pages = 100  # Več strani za 9000+ izdelkov
 
         while page_num <= max_pages:
             self.log(f"Stran {page_num}...")
@@ -834,14 +886,18 @@ class SparScraper(BulletproofScraper):
                 # Preveri koliko izdelkov ni na voljo
                 unavailable_count = page_text.count("ni na voljo")
                 if unavailable_count > 5:
-                    self.log(f"Najdenih {unavailable_count} nedostopnih izdelkov - koncujem kategorijo")
+                    self.log(
+                        f"Najdenih {unavailable_count} nedostopnih izdelkov - koncujem kategorijo"
+                    )
                     break
 
             # Scrapaj izdelke
             page_products = self.scrape_current_page(self.current_category)
             products.extend(page_products)
 
-            self.log(f"Stran {page_num}: {len(page_products)} izdelkov (skupaj: {len(products)})")
+            self.log(
+                f"Stran {page_num}: {len(page_products)} izdelkov (skupaj: {len(products)})"
+            )
 
             # Ce ni bilo novih izdelkov, konec
             if len(page_products) == 0:
@@ -868,6 +924,73 @@ class SparScraper(BulletproofScraper):
         self.log(f"{category_name}: KONČANO - {len(products)} izdelkov", "SUCCESS")
         return products
 
+    def go_to_next_page(self) -> bool:
+        """Klikni na desno puščico za naslednjo stran"""
+        self.log("Iskam naslednjo stran...")
+
+        # Selektorji za naslednjo stran
+        next_selectors = [
+            # Paginacija gumbi - desna puščica
+            'button[aria-label="Next"]',
+            'button[aria-label="next"]',
+            'button[title="Next"]',
+            'button[title="next"]',
+            # Chevron puščice
+            'button:has-text("›")',
+            'button:has-text("▶")',
+            'button:has-text("→")',
+            '[class*="next"]',
+            '[class*="Next"]',
+            # Numbered pagination - poišče naslednjo številko
+            'button:has-text("2")',
+            'a:has-text("2")',
+            # Ant Design pagination
+            ".ant-pagination-next",
+            ".ant-pagination .ant-pagination-next",
+            ".ant-pagination-next button",
+        ]
+
+        for selector in next_selectors:
+            try:
+                btn = self.page.query_selector(selector)
+                if btn and btn.is_visible() and not btn.is_disabled():
+                    self.log(f"Klik na naslednjo stran: {selector}")
+                    btn.click()
+                    self.random_delay(1.0, 2.0)
+                    return True
+            except:
+                continue
+
+        # Fallback - JavaScript click na naslednjo številko
+        try:
+            current_page_num = self.page.evaluate("""
+                () => {
+                    // Poišči trenutno aktivno stran
+                    const active = document.querySelector('.ant-pagination-item-active, [aria-current="page"], .active');
+                    if (active) {
+                        const num = parseInt(active.textContent);
+                        if (!isNaN(num)) {
+                            // Poišči naslednjo številko
+                            const next = document.querySelector(`.ant-pagination-item:nth-child(${num + 2})`);
+                            if (next && next.offsetParent !== null) {
+                                next.click();
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+            """)
+            if current_page_num:
+                self.log("JavaScript klik na naslednjo stran")
+                self.random_delay(1.0, 2.0)
+                return True
+        except:
+            pass
+
+        self.log("Ni najdene naslednje strani")
+        return False
+
     def scrape_all(self) -> list[dict]:
         """Scraping vseh kategorij"""
         self.start()
@@ -890,7 +1013,7 @@ class SparScraper(BulletproofScraper):
 
         # 3. Scrapaj vsako kategorijo
         for i, category_name in enumerate(self.MAIN_CATEGORIES):
-            self.log(f"\n[{i+1}/{len(self.MAIN_CATEGORIES)}] {category_name}")
+            self.log(f"\n[{i + 1}/{len(self.MAIN_CATEGORIES)}] {category_name}")
 
             try:
                 products = self.scrape_category(category_name)

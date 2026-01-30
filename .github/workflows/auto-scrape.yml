@@ -1,0 +1,77 @@
+name: PrHran Auto Scraper
+on:
+  schedule:
+    - cron: '0 1 * * 1'  # Ponedeljek 1:00 UTC
+    - cron: '0 1 * * 4'  # Četrtek 1:00 UTC
+  workflow_dispatch:
+
+jobs:
+  scrape-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 420  # 7 ur
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install playwright numpy pandas
+          playwright install chromium
+          
+      - name: Scrape SPAR
+        run: |
+          cd scraper
+          python stores/spar.py --full-scrape
+          
+      - name: Scrape MERCATOR  
+        run: |
+          cd scraper
+          python stores/mercator.py --brskaj
+          
+      - name: Scrape TUS
+        run: |
+          cd scraper
+          python tus_final_all.py
+          
+      - name: Process and Group Products
+        run: |
+          cd scraper
+          python processor.py --group --validate --select-images
+          
+      - name: Update Database
+        run: |
+          cd scraper
+          python database_sync.py --update-prices --dedup
+          
+      - name: Deploy to Production
+        run: |
+          cd scraper
+          python deploy.py --production --auto-commit
+          
+      - name: Clean Test Products
+        run: |
+          cd scraper
+          python cleanup.py --remove-test-products
+          
+      - name: Validate Results
+        run: |
+          cd scraper
+          python validate_all.py --check-prices --check-duplicates
+          
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✅ PrHran scraping completed successfully!"
+          echo "📊 All stores scraped and deployed"
+          
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ PrHran scraping failed!"
+          echo "🔧 Check logs and retry"

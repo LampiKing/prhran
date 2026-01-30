@@ -447,8 +447,8 @@ class PlaywrightCatalogScraper:
 
     async def scrape_tus(self, page: Page) -> List[Dict]:
         """
-        Scrape Tuš - https://hitrinakup.com/kategorije
-        Navigation: Click each category/subcategory, scrape products
+        Scrape Tuš - https://hitrinakup.com
+        Uporablja ISKANJE za zanesljivo pridobivanje VSEH izdelkov
         """
         products = []
         store_name = "Tus"
@@ -462,105 +462,94 @@ class PlaywrightCatalogScraper:
         valid_from = today.strftime('%Y-%m-%d')
         valid_until = (today + timedelta(days=7)).strftime('%Y-%m-%d')
 
-        # ALL subcategories to scrape - comprehensive list
-        subcategories = [
-            # Sadje in zelenjava
-            "Zelenjava", "Sadje", "Sveže sadje", "Sveža zelenjava", "Solate", "Gobe",
+        # Uporabi iskalne poizvedbe za pridobitev VSEH izdelkov
+        # Vsak search term pokriva določeno kategorijo izdelkov
+        search_terms = [
+            # Osnovna živila
+            "mleko", "jogurt", "sir", "skuta", "maslo", "smetana", "jajca",
             # Meso in ribe
-            "Meso, delikatesa in ribe", "Ribe", "Goveje meso", "Svinjsko meso",
-            "Piščančje meso", "Puranje meso", "Mesni izdelki", "Delikatesa",
-            "Sveže meso", "Morski sadeži",
-            # Mlečni izdelki
-            "Hlajeni in mlečni izdelki", "Siri", "Jajca", "Mleko", "Jogurt",
-            "Skuta", "Maslo", "Smetana", "Mlečni namazi",
-            # Kruh
-            "Kruh in pekovski izdelki", "Kruh", "Pecivo", "Toast", "Žemlje",
-            # Shramba
-            "Shramba", "Testenine", "Riž", "Moka", "Sladkor", "Olje", "Kis",
-            "Konzerve", "Omake", "Začimbe", "Juhe", "Žita", "Kosmiči",
+            "meso", "piščanec", "govedina", "svinjina", "ribe", "salama", "šunka", "klobasa",
+            # Sadje in zelenjava
+            "jabolko", "banana", "pomaranča", "limona", "paradižnik", "paprika", "krompir",
+            "čebula", "korenje", "solata", "kumare", "brokoli", "cvetača",
             # Pijače
-            "Brezalkoholne pijače", "Vode", "Sokovi, nektarji in pijače",
-            "Energijske pijače", "Čaji", "Kava", "Kakav",
-            "Alkoholne pijače", "Pivo", "Vino",
-            # Zamrznjeno
-            "Zamrznjeno", "Zamrznjena zelenjava", "Zamrznjeno meso",
-            "Sladoled", "Zamrznjene jedi",
-            # Sladko in slano
-            "Sladko in slano", "Slani prigrizki", "Sladki prigrizki",
-            "Čokolada", "Bonboni", "Piškoti", "Čips",
+            "sok", "voda", "pivo", "vino", "cola", "fanta", "sprite", "energijska",
+            "kava", "čaj", "kakao",
+            # Shramba
+            "moka", "sladkor", "olje", "kis", "sol", "testenine", "riž", "žita",
+            "kosmiči", "musli", "med", "marmelada", "nutella",
+            # Kruh in pecivo
+            "kruh", "toast", "žemlja", "pecivo",
+            # Sladkarije
+            "čokolada", "bonbon", "keks", "piškot", "čips", "sladoled",
+            "milka", "jaffa", "lindt", "kinder", "haribo",
+            # Konzerve in omake
+            "konzerva", "tuna", "omaka", "kečap", "majoneza", "gorčica",
+            "juha", "podravka", "knorr",
             # Otroška hrana
-            "Otroška hrana", "Mlečne formule", "Kašice",
+            "hipp", "bebimil", "plenice", "pampers",
+            # Čistila in higiena
+            "pralni", "čistilo", "šampon", "milo", "zobna", "toaletni",
             # Hrana za živali
-            "Hrana za živali", "Hrana za pse", "Hrana za mačke",
-            # Čistila
-            "Čistila", "Pralni praški", "Mehčalci",
-            # Osebna nega
-            "Osebna nega", "Šamponi", "Mila", "Zobne paste",
+            "whiskas", "felix", "pedigree",
+            # Blagovne znamke (dodatno)
+            "alpsko", "ljubljanske", "vindija", "dukat", "danone",
+            "barilla", "argeta", "gavrilović", "poli", "lay",
+            "nivea", "dove", "colgate", "domestos", "ajax",
             # BUM akcije
-            "BUM", "Akcija", "Znižano",
+            "bum", "akcija",
         ]
 
         try:
-            print("Loading https://hitrinakup.com/kategorije ...")
-            await page.goto('https://hitrinakup.com/kategorije', wait_until='networkidle', timeout=60000)
+            # Najprej sprejmi piškotke
+            print("Loading hitrinakup.com and accepting cookies...")
+            await page.goto('https://hitrinakup.com', wait_until='networkidle', timeout=60000)
             await asyncio.sleep(3)
 
-            for subcat in subcategories:
-                try:
-                    print(f"\n  [{subcat}]")
+            # Sprejmi piškotke
+            try:
+                cookie_btn = await page.query_selector('button:has-text("DOVOLIM VSE"), button:has-text("Dovolim vse"), button:has-text("Sprejmi")')
+                if cookie_btn:
+                    await cookie_btn.click()
+                    print("  Cookies accepted")
+                    await asyncio.sleep(2)
+            except:
+                pass
 
-                    # Go back to categories page
-                    await page.goto('https://hitrinakup.com/kategorije', wait_until='networkidle', timeout=30000)
+            for search_term in search_terms:
+                try:
+                    print(f"\n  [Iskanje: {search_term}]", end=" ", flush=True)
+
+                    # Odpri iskanje
+                    search_url = f'https://hitrinakup.com/iskanje?q={search_term}'
+                    await page.goto(search_url, wait_until='networkidle', timeout=30000)
                     await asyncio.sleep(2)
 
-                    # Find and click the subcategory
-                    subcat_link = await page.query_selector(f'text="{subcat}"')
-                    if not subcat_link:
-                        # Try with partial matching
-                        all_links = await page.query_selector_all('a')
-                        for link in all_links:
-                            try:
-                                link_text = await link.inner_text()
-                                if subcat.lower() in link_text.lower():
-                                    subcat_link = link
-                                    break
-                            except:
-                                continue
-
-                    if not subcat_link:
-                        print(f"    Subcategory not found, skipping")
-                        continue
-
-                    await subcat_link.click()
-                    await asyncio.sleep(3)
-
-                    # AGRESIVEN infinite scroll - nalagaj dokler ni več novih izdelkov
+                    # Infinite scroll za nalaganje vseh rezultatov
                     last_count = 0
                     no_change_count = 0
-                    max_scrolls = 50  # Varnostni limit
+                    max_scrolls = 30  # Manj scrollov ker je iskanje
 
                     for scroll_num in range(max_scrolls):
                         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                        await asyncio.sleep(1.5)  # Več časa za nalaganje
+                        await asyncio.sleep(1)
 
-                        # Preštej izdelke
-                        current_cards = await page.query_selector_all('[class*="itemCard"], [class*="ItemCard"], [class*="product-card"]')
+                        # Preštej izdelke - več selektorjev za zanesljivost
+                        current_cards = await page.query_selector_all('[class*="itemCard"], [class*="ItemCard"], [class*="product"], article, [data-testid*="product"]')
                         current_count = len(current_cards)
 
                         if current_count == last_count:
                             no_change_count += 1
-                            if no_change_count >= 3:  # 3x brez spremembe = konec
+                            if no_change_count >= 3:
                                 break
                         else:
                             no_change_count = 0
                             last_count = current_count
 
-                    print(f"    Loaded {last_count} cards after scrolling")
+                    # Poišči VSE kartice izdelkov
+                    cards = await page.query_selector_all('[class*="itemCard"], [class*="ItemCard"], [class*="product"], article, [data-testid*="product"]')
 
-                    # Find product cards
-                    cards = await page.query_selector_all('[class*="itemCard"], [class*="ItemCard"], [class*="product-card"]')
-
-                    category_products = 0
+                    search_products = 0
                     for card in cards:
                         try:
                             # Get product name
