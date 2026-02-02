@@ -10,7 +10,7 @@ on:
 jobs:
   scrape-all-stores:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 uri max
+    timeout-minutes: 180  # 3 ure max (increased from 2h)
 
     steps:
       - name: Checkout repository

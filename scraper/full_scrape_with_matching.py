@@ -160,63 +160,125 @@ def get_image_hash(url: str, timeout: int = 5) -> str:
 # SCRAPING
 # ============================================
 
-def scrape_store(store_name: str) -> list:
-    """Scrape vse izdelke iz ene trgovine."""
+def scrape_store(store_name: str, max_retries: int = 2) -> list:
+    """Scrape vse izdelke iz ene trgovine z retry logiko."""
     log(f"Začenjam scraping: {store_name.upper()}")
 
-    with sync_playwright() as p:
-        # Headless mode za CI/CD (GitHub Actions), headed za lokalno
-        is_ci = os.getenv("CI", "false").lower() == "true" or os.getenv("GITHUB_ACTIONS", "false").lower() == "true"
-        browser = p.chromium.launch(headless=is_ci)
-        context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            locale="sl-SI",
-        )
-        context.set_default_timeout(60000)
-        page = context.new_page()
+    import signal
+    from contextlib import contextmanager
 
+    @contextmanager
+    def timeout_context(seconds):
+        """Timeout context manager."""
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Store scraping timeout after {seconds}s")
+
+        # Set signal alarm (only works on Unix)
+        if hasattr(signal, 'SIGALRM'):
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(seconds)
+            try:
+                yield
+            finally:
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+        else:
+            # Windows - no timeout
+            yield
+
+    for attempt in range(max_retries):
         try:
-            if store_name == "spar":
-                from stores.spar import SparScraper
-                scraper = SparScraper(page)
-                products = scraper.scrape_all()
+            log(f"{store_name.upper()}: Poskus {attempt + 1}/{max_retries}")
 
-            elif store_name == "mercator":
-                from stores.mercator import MercatorScraper
-                scraper = MercatorScraper(page)
-                products = scraper.scrape_all_simple()
+            with sync_playwright() as p:
+                # Headless mode za CI/CD (GitHub Actions), headed za lokalno
+                is_ci = os.getenv("CI", "false").lower() == "true" or os.getenv("GITHUB_ACTIONS", "false").lower() == "true"
+                browser = p.chromium.launch(
+                    headless=is_ci,
+                    args=['--disable-blink-features=AutomationControlled']
+                )
+                context = browser.new_context(
+                    viewport={"width": 1920, "height": 1080},
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    locale="sl-SI",
+                )
+                context.set_default_timeout(90000)  # 90s per page operation
+                page = context.new_page()
 
-            elif store_name == "tus":
-                from stores.tus import TusScraper
-                scraper = TusScraper(page)
-                products = scraper.scrape_all()
-            else:
-                products = []
+                try:
+                    # Max 40min na trgovino
+                    with timeout_context(2400):
+                        if store_name == "spar":
+                            from stores.spar import SparScraper
+                            scraper = SparScraper(page)
+                            products = scraper.scrape_all()
 
-            log(f"{store_name.upper()}: {len(products)} izdelkov", "SUCCESS")
-            return products
+                        elif store_name == "mercator":
+                            from stores.mercator import MercatorScraper
+                            scraper = MercatorScraper(page)
+                            products = scraper.scrape_all_simple()
+
+                        elif store_name == "tus":
+                            from stores.tus import TusScraper
+                            scraper = TusScraper(page)
+                            products = scraper.scrape_all()
+                        else:
+                            products = []
+
+                    log(f"{store_name.upper()}: {len(products)} izdelkov", "SUCCESS")
+                    return products
+
+                finally:
+                    try:
+                        browser.close()
+                    except:
+                        pass
+
+        except TimeoutError as e:
+            log(f"{store_name.upper()}: TIMEOUT - {e}", "ERROR")
+            if attempt == max_retries - 1:
+                return []
+            log(f"{store_name.upper()}: Retry po 10s...")
+            import time
+            time.sleep(10)
 
         except Exception as e:
-            log(f"{store_name.upper()}: NAPAKA - {e}", "ERROR")
-            return []
-        finally:
-            browser.close()
+            log(f"{store_name.upper()}: NAPAKA - {str(e)[:200]}", "ERROR")
+            import traceback
+            log(f"Traceback: {traceback.format_exc()[:500]}", "ERROR")
+            if attempt == max_retries - 1:
+                return []
+            log(f"{store_name.upper()}: Retry po 5s...")
+            import time
+            time.sleep(5)
+
+    return []
 
 
 def scrape_all_stores() -> dict:
-    """Scrape vse trgovine."""
+    """Scrape vse trgovine - continue tudi če ena failne."""
     all_products = {}
 
     for store in STORES:
-        products = scrape_store(store)
-        all_products[store] = products
+        try:
+            log(f"\n{'='*50}")
+            log(f"TRGOVINA: {store.upper()}")
+            log(f"{'='*50}")
 
-        # Shrani vmesne rezultate
-        output_file = OUTPUT_DIR / f"{store}_products.json"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(products, f, ensure_ascii=False, indent=2)
-        log(f"Shranjeno: {output_file}")
+            products = scrape_store(store, max_retries=2)
+            all_products[store] = products
+
+            # Shrani vmesne rezultate
+            output_file = OUTPUT_DIR / f"{store}_products.json"
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(products, f, ensure_ascii=False, indent=2)
+            log(f"Shranjeno: {output_file}")
+
+        except Exception as e:
+            log(f"{store.upper()}: KRITIČNA NAPAKA - {str(e)[:200]}", "ERROR")
+            all_products[store] = []
+            # Continue z naslednjim store-om
+            continue
 
     return all_products
 
@@ -430,9 +492,18 @@ def upload_to_convex(all_products: dict):
     convex_url = os.getenv("CONVEX_URL", "")
     ingest_token = os.getenv("PRHRAN_INGEST_TOKEN", "")
 
-    if not convex_url or not ingest_token:
-        log("CONVEX_URL ali PRHRAN_INGEST_TOKEN ni nastavljen - preskakujem Convex upload", "WARN")
+    if not convex_url:
+        log("❌ CONVEX_URL ni nastavljen!", "ERROR")
+        log(f"Trenutna vrednost: '{convex_url}'", "ERROR")
         return False
+
+    if not ingest_token:
+        log("❌ PRHRAN_INGEST_TOKEN ni nastavljen!", "ERROR")
+        log(f"Trenutna vrednost: '{ingest_token}'", "ERROR")
+        return False
+
+    log(f"✅ Convex URL: {convex_url[:50]}...", "INFO")
+    log(f"✅ Token prisoten: {len(ingest_token)} znakov", "INFO")
 
     # Pretvori v format za Convex
     items = []
@@ -468,17 +539,22 @@ def upload_to_convex(all_products: dict):
                     "Authorization": f"Bearer {ingest_token}",
                     "Content-Type": "application/json"
                 },
-                timeout=60
+                timeout=120  # Increased from 60s to 120s
             )
 
             if response.status_code == 200:
                 total_uploaded += len(batch)
-                log(f"  Batch {i//batch_size + 1}: {len(batch)} izdelkov OK")
+                log(f"  Batch {i//batch_size + 1}: {len(batch)} izdelkov OK ✅")
             else:
-                log(f"  Batch {i//batch_size + 1}: NAPAKA {response.status_code}", "ERROR")
+                log(f"  Batch {i//batch_size + 1}: HTTP {response.status_code}", "ERROR")
+                log(f"  Response: {response.text[:200]}", "ERROR")
 
+        except requests.Timeout:
+            log(f"  Batch {i//batch_size + 1}: TIMEOUT (120s)", "ERROR")
+        except requests.ConnectionError as e:
+            log(f"  Batch {i//batch_size + 1}: CONNECTION ERROR - {str(e)[:100]}", "ERROR")
         except Exception as e:
-            log(f"  Batch {i//batch_size + 1}: NAPAKA {e}", "ERROR")
+            log(f"  Batch {i//batch_size + 1}: NAPAKA {str(e)[:200]}", "ERROR")
 
     log(f"Convex upload končan: {total_uploaded}/{len(items)} izdelkov", "SUCCESS")
     return True
