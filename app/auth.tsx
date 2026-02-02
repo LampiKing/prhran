@@ -23,9 +23,6 @@ import { useConvexAuth, useQuery, useAction, useMutation } from "convex/react";
 import Logo, { getSeasonalLogoSource } from "../lib/Logo";
 import { api } from "../convex/_generated/api";
 import { getDeviceFingerprint } from "../lib/device-fingerprint";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const ONBOARDING_KEY = "prhran_onboarding_completed";
 
 const FACTS = [
   "Pametna primerjava cen ti prihrani čas in denar.",
@@ -93,23 +90,6 @@ export default function AuthScreen() {
   // Get device fingerprint on mount
   useEffect(() => {
     getDeviceFingerprint().then(setDeviceInfo).catch(console.error);
-  }, []);
-
-  // Check if onboarding is completed - redirect if not
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      try {
-        const completed = await AsyncStorage.getItem(ONBOARDING_KEY);
-        if (completed !== "true") {
-          // Onboarding not completed, redirect to onboarding
-          router.replace("/onboarding");
-        }
-      } catch (error) {
-        console.error("Error checking onboarding status:", error);
-        // On error, assume onboarding completed to avoid blocking users
-      }
-    };
-    checkOnboarding();
   }, []);
 
   // Device access check query

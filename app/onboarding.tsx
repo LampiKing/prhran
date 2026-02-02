@@ -240,10 +240,10 @@ export default function OnboardingScreen() {
     setTimeout(async () => {
       try {
         await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-        router.replace("/auth");
+        router.replace("/landing");
       } catch (error) {
         console.error("Error saving onboarding state:", error);
-        router.replace("/auth");
+        router.replace("/landing");
       }
     }, 2200);
   }, [celebrationOpacity, particleAnims, particles, rocketY, rocketScale, textScale, textOpacity, router]);
@@ -254,10 +254,10 @@ export default function OnboardingScreen() {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      router.replace("/auth");
+      router.replace("/landing");
     } catch (error) {
       console.error("Error saving onboarding state:", error);
-      router.replace("/auth");
+      router.replace("/landing");
     }
   }, [router]);
 
