@@ -170,6 +170,7 @@ const TESTIMONIALS = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const [liveUsers] = useState(2847); // Fixed number instead of random
+  const [showStickyCTA, setShowStickyCTA] = useState(false);
 
   // Animations
   const starTwinkle = useRef(new Animated.Value(0)).current;
@@ -177,6 +178,7 @@ export default function OnboardingScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heroScale = useRef(new Animated.Value(0.95)).current;
   const heroOpacity = useRef(new Animated.Value(0)).current;
+  const stickyCtaAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Star twinkle
@@ -250,6 +252,21 @@ export default function OnboardingScreen() {
   const triggerHaptic = () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
+  const handleScroll = (event: any) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    const shouldShow = scrollY > 600; // Show after scrolling 600px
+
+    if (shouldShow !== showStickyCTA) {
+      setShowStickyCTA(shouldShow);
+      Animated.spring(stickyCtaAnim, {
+        toValue: shouldShow ? 1 : 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -360,6 +377,8 @@ export default function OnboardingScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {/* HERO SECTION */}
           <Animated.View
@@ -454,27 +473,27 @@ export default function OnboardingScreen() {
             </View>
           </Animated.View>
 
-          {/* PSYCHOLOGY SECTION - Loss Aversion */}
+          {/* SOCIAL PROOF - Positive approach */}
           <View style={styles.section}>
             <View style={styles.glassCard}>
               <BlurView intensity={10} tint="dark" style={styles.glassCardBlur}>
-                <Ionicons name="alert-circle" size={48} color="#ef4444" />
+                <Ionicons name="people" size={48} color="#10b981" />
                 <Text style={styles.psychologyTitle}>
-                  Ali veš koliko denarja zapraviš?
+                  Pridruži se 2.500+ pametnim kupcem
                 </Text>
                 <Text style={styles.psychologyText}>
-                  Povprečna slovenska družina zapravi{" "}
+                  Povprečen uporabnik prihrani{" "}
                   <Text style={styles.psychologyHighlight}>€200+ mesečno</Text>
-                  {"\n"}ker ne primerja cen!
+                  {"\n"}samo s primerjavo cen!
                 </Text>
                 <View style={styles.psychologyStats}>
                   <View style={styles.psychologyStat}>
                     <Text style={styles.psychologyStatValue}>€2.400</Text>
-                    <Text style={styles.psychologyStatLabel}>na leto</Text>
+                    <Text style={styles.psychologyStatLabel}>letni prihranek</Text>
                   </View>
                   <View style={styles.psychologyStat}>
-                    <Text style={styles.psychologyStatValue}>30%</Text>
-                    <Text style={styles.psychologyStatLabel}>prihranek</Text>
+                    <Text style={styles.psychologyStatValue}>do 30%</Text>
+                    <Text style={styles.psychologyStatLabel}>prihranka</Text>
                   </View>
                 </View>
               </BlurView>
@@ -709,6 +728,45 @@ export default function OnboardingScreen() {
 
           <View style={{ height: 60 }} />
         </ScrollView>
+
+        {/* Sticky Mobile CTA - 70% of traffic is mobile! */}
+        {Platform.OS !== "web" && (
+          <Animated.View
+            style={[
+              styles.stickyCTA,
+              {
+                transform: [
+                  {
+                    translateY: stickyCtaAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [100, 0],
+                    }),
+                  },
+                ],
+                opacity: stickyCtaAnim,
+              },
+            ]}
+            pointerEvents={showStickyCTA ? "auto" : "none"}
+          >
+            <BlurView intensity={40} tint="dark" style={styles.stickyCTABlur}>
+              <TouchableOpacity
+                style={styles.stickyCTAButton}
+                onPress={handleDownloadApp}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={["#10b981", "#059669"]}
+                  style={styles.stickyCTAGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.stickyCTAText}>PRENESI APLIKACIJO</Text>
+                  <Ionicons name="download" size={20} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </BlurView>
+          </Animated.View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -981,12 +1039,12 @@ const styles = StyleSheet.create({
     padding: 40,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderColor: "rgba(16, 185, 129, 0.3)",
   },
   psychologyTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#ef4444",
+    color: "#10b981",
     textAlign: "center",
     marginTop: 20,
     marginBottom: 16,
@@ -1001,7 +1059,7 @@ const styles = StyleSheet.create({
   psychologyHighlight: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#ef4444",
+    color: "#10b981",
   },
   psychologyStats: {
     flexDirection: "row",
@@ -1360,5 +1418,38 @@ const styles = StyleSheet.create({
   finalCtaLoginHighlight: {
     color: "#10b981",
     fontWeight: "700",
+  },
+
+  // STICKY MOBILE CTA (70% traffic is mobile!)
+  stickyCTA: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
+  stickyCTABlur: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === "ios" ? 24 : 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+  },
+  stickyCTAButton: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  stickyCTAGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  stickyCTAText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: 0.5,
   },
 });
