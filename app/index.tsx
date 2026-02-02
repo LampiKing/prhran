@@ -45,8 +45,8 @@ export default function Index() {
     return <Redirect href="/(tabs)" />;
   }
 
-  // Not authenticated - show landing page
-  return <Redirect href="/landing" />;
+  // Not authenticated - show onboarding/landing page
+  return <Redirect href="/onboarding" />;
 }
 
 const styles = StyleSheet.create({

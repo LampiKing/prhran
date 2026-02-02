@@ -1,129 +1,145 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  Dimensions,
   TouchableOpacity,
+  StyleSheet,
+  ScrollView,
   Animated,
-  Platform,
   Easing,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import FloatingBackground from "../lib/FloatingBackground";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Logo from "../lib/Logo";
+import { BlurView } from "expo-blur";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ONBOARDING_KEY = "prhran_onboarding_completed";
 
-interface OnboardingSlide {
-  id: number;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  description: string;
-  highlight?: string;
-  gradient: [string, string];
-}
-
-const slides: OnboardingSlide[] = [
-  {
-    id: 1,
-    icon: "cash-outline",
-    title: "Koliko denarja\nzapraviš preveč?",
-    subtitle: "Verjetno več kot misliš.",
-    description: "Ista hrana, različne cene.\nMi najdemo najnižjo.",
-    highlight: "100% brezplačno.",
-    gradient: ["#dc2626", "#ef4444"],
-  },
-  {
-    id: 2,
-    icon: "search",
-    title: "Ena sekunda.",
-    subtitle: "Toliko rabiš za najnižjo ceno.",
-    description: "Spar, Mercator, Tuš...\nVse primerjano v realnem času.",
-    highlight: "Brez dela.",
-    gradient: ["#7c3aed", "#a855f7"],
-  },
-  {
-    id: 3,
-    icon: "list",
-    title: "Tvoj pameten seznam.",
-    subtitle: "Avtomatsko izračuna prihranek.",
-    description: "Dodaj izdelke.\nMi ti povemo kje kupit.",
-    highlight: "Pametno nakupovanje.",
-    gradient: ["#059669", "#10b981"],
-  },
-  {
-    id: 4,
-    icon: "wallet",
-    title: "Do 30% prihranka.",
-    subtitle: "Vsak mesec. Brez napora.",
-    description: "Tisoči Slovencev že varčujejo.\nZakaj ne bi tudi ti?",
-    gradient: ["#d97706", "#f59e0b"],
-  },
-];
-
-// Celebration particles config
-const PARTICLE_COUNT = 20;
-const DISCOUNT_BADGES = ["-30%", "-25%", "-20%", "-15%", "€€€", "-50%", "WOW!", "-40%"];
-const PARTICLE_COLORS = ["#f59e0b", "#fbbf24", "#d97706", "#22c55e", "#10b981", "#a855f7"];
-
-interface Particle {
-  id: number;
-  x: number;
-  y: number;
-  text: string;
-  color: string;
-  rotation: number;
-  scale: number;
-  delay: number;
-}
-
-const generateParticles = (): Particle[] => {
-  return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+// Stars background generator
+const generateStars = (count: number) => {
+  return Array.from({ length: count }, (_, i) => ({
     id: i,
-    x: Math.random() * SCREEN_WIDTH,
-    y: SCREEN_HEIGHT + 50 + Math.random() * 200,
-    text: DISCOUNT_BADGES[Math.floor(Math.random() * DISCOUNT_BADGES.length)],
-    color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
-    rotation: Math.random() * 360,
-    scale: 0.6 + Math.random() * 0.6,
-    delay: Math.random() * 400,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    size: Math.random() * 2 + 1,
+    opacity: Math.random() * 0.7 + 0.3,
+    delay: Math.random() * 3000,
   }));
 };
 
+const STARS = generateStars(150);
+
+// Primer cen - REALNI podatki
+const PRICE_EXAMPLES = [
+  {
+    product: "Mleko 1L",
+    prices: [
+      { store: "Tuš", price: 1.19, best: true },
+      { store: "Spar", price: 1.29, best: false },
+      { store: "Mercator", price: 1.35, best: false },
+    ],
+    savings: "0.16€ (13%)",
+  },
+  {
+    product: "Kruh 500g",
+    prices: [
+      { store: "Hofer", price: 0.89, best: true },
+      { store: "Mercator", price: 1.09, best: false },
+      { store: "Spar", price: 1.15, best: false },
+    ],
+    savings: "0.26€ (23%)",
+  },
+];
+
+const FEATURES = [
+  {
+    icon: "search",
+    title: "Primerjaj cene",
+    description: "V sekundi vidiš najnižjo ceno med vsemi trgovinami",
+    color: "#10b981",
+  },
+  {
+    icon: "camera",
+    title: "Skeniraj račun",
+    description: "Slikaj račun in spremljaj dejanske prihranke",
+    color: "#a855f7",
+  },
+  {
+    icon: "list",
+    title: "Pameten seznam",
+    description: "Naredi seznam in mi ti povemo kje kupit",
+    color: "#3b82f6",
+  },
+  {
+    icon: "wallet",
+    title: "Sledenje prihrankam",
+    description: "Vidiš koliko si dejansko prihranil ta mesec",
+    color: "#f59e0b",
+  },
+];
+
+const HOW_IT_WORKS = [
+  { step: "1", text: "Išči izdelek", icon: "search" },
+  { step: "2", text: "Primerjaj cene", icon: "analytics" },
+  { step: "3", text: "Kupi najceneje", icon: "checkmark-circle" },
+];
+
 export default function OnboardingScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const slideRef = useRef<any>(null);
+  const [liveUsers] = useState(Math.floor(Math.random() * 500) + 2000);
+
+  // Animations
+  const starTwinkle = useRef(new Animated.Value(0)).current;
+  const floatY = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const heroScale = useRef(new Animated.Value(0.95)).current;
+  const heroOpacity = useRef(new Animated.Value(0)).current;
 
-  // Celebration animations
-  const celebrationOpacity = useRef(new Animated.Value(0)).current;
-  const rocketY = useRef(new Animated.Value(0)).current;
-  const rocketScale = useRef(new Animated.Value(1)).current;
-  const textScale = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const particleAnims = useRef(
-    Array.from({ length: PARTICLE_COUNT }, () => ({
-      y: new Animated.Value(0),
-      opacity: new Animated.Value(0),
-      rotate: new Animated.Value(0),
-    }))
-  ).current;
-  const [particles] = useState(generateParticles);
+  useEffect(() => {
+    // Star twinkle
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(starTwinkle, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(starTwinkle, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
-  // Pulse animation for the highlight text
-  const startPulse = useCallback(() => {
+    // Float animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatY, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatY, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Pulse CTA
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -138,406 +154,400 @@ export default function OnboardingScreen() {
         }),
       ])
     ).start();
-  }, [pulseAnim]);
 
-  useEffect(() => {
-    startPulse();
-  }, [startPulse]);
+    // Hero entrance
+    Animated.parallel([
+      Animated.spring(heroScale, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heroOpacity, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-  const playCelebration = useCallback(() => {
-    setShowCelebration(true);
-
+  const triggerHaptic = () => {
     if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
+  };
 
-    // Fade in celebration screen
-    Animated.timing(celebrationOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-
-    // Animate particles flying up
-    particleAnims.forEach((anim, index) => {
-      const particle = particles[index];
-
-      Animated.sequence([
-        Animated.delay(particle.delay),
-        Animated.parallel([
-          Animated.timing(anim.y, {
-            toValue: -SCREEN_HEIGHT - 200,
-            duration: 2000 + Math.random() * 1000,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.sequence([
-            Animated.timing(anim.opacity, {
-              toValue: 1,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-            Animated.delay(1500),
-            Animated.timing(anim.opacity, {
-              toValue: 0,
-              duration: 500,
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.timing(anim.rotate, {
-            toValue: 1,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start();
-    });
-
-    // Rocket animation
-    Animated.sequence([
-      Animated.delay(300),
-      Animated.parallel([
-        Animated.timing(rocketY, {
-          toValue: -SCREEN_HEIGHT,
-          duration: 1500,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.timing(rocketScale, {
-            toValue: 1.3,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(rocketScale, {
-            toValue: 0.5,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    ]).start();
-
-    // Big text animation
-    Animated.sequence([
-      Animated.delay(200),
-      Animated.parallel([
-        Animated.spring(textScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 50,
-          useNativeDriver: true,
-        }),
-        Animated.timing(textOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-
-    // Navigate after animation
-    setTimeout(async () => {
-      try {
-        await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-        router.replace("/landing");
-      } catch (error) {
-        console.error("Error saving onboarding state:", error);
-        router.replace("/landing");
-      }
-    }, 2200);
-  }, [celebrationOpacity, particleAnims, particles, rocketY, rocketScale, textScale, textOpacity, router]);
-
-  const completeOnboarding = useCallback(async () => {
+  const handleDownloadApp = async () => {
+    triggerHaptic();
+    // Za zdaj samo označi onboarding kot completed
     try {
       await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-      router.replace("/landing");
     } catch (error) {
-      console.error("Error saving onboarding state:", error);
-      router.replace("/landing");
+      console.error("Error:", error);
     }
-  }, [router]);
-
-  const goToNextSlide = useCallback(() => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    if (currentIndex < slides.length - 1) {
-      slideRef.current?.scrollTo({
-        x: (currentIndex + 1) * SCREEN_WIDTH,
-        animated: true,
-      });
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      // Last slide - play celebration!
-      playCelebration();
-    }
-  }, [currentIndex, playCelebration]);
-
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    {
-      useNativeDriver: false,
-      listener: (event: any) => {
-        const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-        if (index !== currentIndex && index >= 0 && index < slides.length) {
-          setCurrentIndex(index);
-        }
-      },
-    }
-  );
-
-  const renderSlide = (slide: OnboardingSlide, index: number) => {
-    const inputRange = [
-      (index - 1) * SCREEN_WIDTH,
-      index * SCREEN_WIDTH,
-      (index + 1) * SCREEN_WIDTH,
-    ];
-
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.85, 1, 0.85],
-      extrapolate: "clamp",
-    });
-
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.5, 1, 0.5],
-      extrapolate: "clamp",
-    });
-
-    const isLastSlide = index === slides.length - 1;
-
-    return (
-      <View key={slide.id} style={styles.slide}>
-        <Animated.View style={[styles.slideContent, { transform: [{ scale }], opacity }]}>
-          <View style={styles.iconWrapper}>
-            <LinearGradient
-              colors={slide.gradient}
-              style={styles.iconCircle}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name={slide.icon} size={80} color="#fff" />
-            </LinearGradient>
-          </View>
-
-          <Text style={styles.mainTitle}>{slide.title}</Text>
-          <Text style={styles.subtitle}>{slide.subtitle}</Text>
-          <Text style={styles.description}>{slide.description}</Text>
-
-          {slide.highlight && (
-            <Animated.View style={[
-              styles.highlightBadge,
-              isLastSlide && { transform: [{ scale: pulseAnim }] }
-            ]}>
-              <LinearGradient
-                colors={slide.gradient}
-                style={styles.highlightGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.highlightText}>{slide.highlight}</Text>
-              </LinearGradient>
-            </Animated.View>
-          )}
-        </Animated.View>
-      </View>
-    );
+    // Alert ali modal da app še ni na storu
+    alert("Aplikacija bo kmalu na voljo v App Store in Google Play! 🚀");
   };
 
-  const renderDots = () => {
-    return (
-      <View style={styles.dotsContainer}>
-        {slides.map((_, index) => {
-          const inputRange = [
-            (index - 1) * SCREEN_WIDTH,
-            index * SCREEN_WIDTH,
-            (index + 1) * SCREEN_WIDTH,
-          ];
-
-          const dotWidth = scrollX.interpolate({
-            inputRange,
-            outputRange: [10, 28, 10],
-            extrapolate: "clamp",
-          });
-
-          const dotOpacity = scrollX.interpolate({
-            inputRange,
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: "clamp",
-          });
-
-          return (
-            <Animated.View
-              key={index}
-              style={[
-                styles.dot,
-                {
-                  width: dotWidth,
-                  opacity: dotOpacity,
-                  backgroundColor: currentIndex === index ? "#a855f7" : "#6b7280",
-                },
-              ]}
-            />
-          );
-        })}
-      </View>
-    );
+  const handleLogin = () => {
+    triggerHaptic();
+    router.push("/auth?mode=login");
   };
 
-  const isLastSlide = currentIndex === slides.length - 1;
+  const handleSignup = () => {
+    triggerHaptic();
+    router.push("/auth?mode=register");
+  };
 
-  // Celebration screen
-  if (showCelebration) {
-    return (
-      <Animated.View style={[styles.celebrationContainer, { opacity: celebrationOpacity }]}>
-        <LinearGradient
-          colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        {/* Flying discount particles */}
-        {particles.map((particle, index) => (
-          <Animated.View
-            key={particle.id}
-            style={[
-              styles.particle,
-              {
-                left: particle.x,
-                top: particle.y,
-                opacity: particleAnims[index].opacity,
-                transform: [
-                  { translateY: particleAnims[index].y },
-                  { scale: particle.scale },
-                  {
-                    rotate: particleAnims[index].rotate.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0deg", `${particle.rotation > 180 ? 360 : -360}deg`],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={[styles.particleBadge, { backgroundColor: particle.color }]}>
-              <Text style={styles.particleText}>{particle.text}</Text>
-            </View>
-          </Animated.View>
-        ))}
-
-        {/* Rocket */}
-        <Animated.View
-          style={[
-            styles.rocketContainer,
-            {
-              transform: [
-                { translateY: rocketY },
-                { scale: rocketScale },
-              ],
-            },
-          ]}
-        >
-          <Text style={styles.rocketEmoji}>🚀</Text>
-        </Animated.View>
-
-        {/* Big celebration text */}
-        <Animated.View
-          style={[
-            styles.celebrationTextContainer,
-            {
-              opacity: textOpacity,
-              transform: [{ scale: textScale }],
-            },
-          ]}
-        >
-          <Text style={styles.celebrationTitle}>PR'HRANI!</Text>
-          <Text style={styles.celebrationSubtitle}>Gremo varčevat!</Text>
-        </Animated.View>
-      </Animated.View>
-    );
-  }
+  const translateY = floatY.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -15],
+  });
 
   return (
     <View style={styles.container}>
+      {/* Dark space background gradient */}
       <LinearGradient
-        colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
+        colors={["#0a0614", "#1a0f2e", "#0f0a1e", "#1e1137"]}
         style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       />
-      <FloatingBackground variant="minimal" />
 
-      {!isLastSlide && (
-        <TouchableOpacity
-          style={[styles.skipButton, { top: insets.top + 16 }]}
-          onPress={completeOnboarding}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.skipText}>Preskoči</Text>
-          <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-        </TouchableOpacity>
-      )}
+      {/* Animated stars */}
+      {STARS.map((star) => (
+        <Animated.View
+          key={star.id}
+          style={[
+            styles.star,
+            {
+              left: `${star.left}%`,
+              top: `${star.top}%`,
+              width: star.size,
+              height: star.size,
+              opacity: starTwinkle.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [star.opacity, star.opacity * 0.3, star.opacity],
+              }),
+            },
+          ]}
+        />
+      ))}
 
-      <Animated.ScrollView
-        ref={slideRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      {/* Floating icons background */}
+      <Animated.View
+        style={[
+          styles.floatingIcon,
+          styles.iconTopLeft,
+          { transform: [{ translateY }] },
+        ]}
       >
-        {slides.map((slide, index) => renderSlide(slide, index))}
-      </Animated.ScrollView>
+        <Ionicons name="cart-outline" size={120} color="rgba(16, 185, 129, 0.08)" />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.floatingIcon,
+          styles.iconTopRight,
+          { transform: [{ translateY: floatY.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }] },
+        ]}
+      >
+        <Ionicons name="pricetag-outline" size={100} color="rgba(168, 85, 247, 0.08)" />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.floatingIcon,
+          styles.iconBottomLeft,
+          { transform: [{ translateY: floatY.interpolate({ inputRange: [0, 1], outputRange: [0, -25] }) }] },
+        ]}
+      >
+        <Ionicons name="wallet-outline" size={90} color="rgba(59, 130, 246, 0.08)" />
+      </Animated.View>
 
-      <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}>
-        {renderDots()}
-
-        <Animated.View style={isLastSlide ? { transform: [{ scale: pulseAnim }] } : undefined}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={goToNextSlide}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={isLastSlide ? ["#059669", "#10b981"] : ["#7c3aed", "#a855f7"]}
-              style={styles.actionButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+      <SafeAreaView style={styles.safeArea}>
+        {/* NAVBAR */}
+        <View style={styles.navbar}>
+          <View style={styles.navLeft}>
+            <Logo size={40} />
+            <Text style={styles.navBrand}>Pr'Hran</Text>
+          </View>
+          <View style={styles.navRight}>
+            <TouchableOpacity
+              style={styles.navButton}
+              onPress={handleLogin}
+              activeOpacity={0.8}
             >
-              <Text style={styles.actionButtonText}>
-                {isLastSlide ? "ZAČNI IN PR'HRAN!" : "NAPREJ"}
-              </Text>
-              <Ionicons
-                name={isLastSlide ? "rocket" : "arrow-forward"}
-                size={22}
-                color="#fff"
-                style={{ marginLeft: 10 }}
-              />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+              <Text style={styles.navButtonText}>Prijava</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navButtonPrimary}
+              onPress={handleSignup}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={["#10b981", "#059669"]}
+                style={styles.navButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.navButtonPrimaryText}>Registracija</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        {isLastSlide && (
-          <View style={styles.trustRow}>
-            <View style={styles.trustItem}>
-              <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-              <Text style={styles.trustText}>Brezplačno</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* HERO SECTION */}
+          <Animated.View
+            style={[
+              styles.heroSection,
+              {
+                opacity: heroOpacity,
+                transform: [{ scale: heroScale }],
+              },
+            ]}
+          >
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>
+                Primerjaj Cene{"\n"}
+                <Text style={styles.heroTitleAccent}>Prihrani Denar</Text>
+              </Text>
+
+              <Text style={styles.heroSubtitle}>
+                AI-powered primerjava cen živil v slovenskih trgovinah.{"\n"}
+                Pametno nakupovanje. Realni prihranki.
+              </Text>
+
+              {/* LIVE users badge */}
+              <View style={styles.liveBadge}>
+                <BlurView intensity={20} tint="dark" style={styles.liveBadgeBlur}>
+                  <View style={styles.liveIndicator}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveText}>LIVE</Text>
+                  </View>
+                  <View style={styles.userAvatars}>
+                    <View style={[styles.avatar, styles.avatar1]} />
+                    <View style={[styles.avatar, styles.avatar2]} />
+                    <View style={[styles.avatar, styles.avatar3]} />
+                  </View>
+                  <Text style={styles.liveCount}>
+                    {liveUsers.toLocaleString()}+ uporabnikov aktivnih
+                  </Text>
+                </BlurView>
+              </View>
+
+              {/* Primary CTA */}
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                <TouchableOpacity
+                  style={styles.ctaPrimary}
+                  onPress={handleDownloadApp}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={["#10b981", "#059669", "#047857"]}
+                    style={styles.ctaGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Ionicons name="download" size={24} color="#fff" />
+                    <Text style={styles.ctaText}>PRENESI APLIKACIJO</Text>
+                    <Ionicons name="arrow-forward" size={24} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Text style={styles.ctaFooter}>
+                Brezplačno. Brez oglasov. Za vedno.
+              </Text>
             </View>
-            <View style={styles.trustItem}>
-              <Ionicons name="lock-closed" size={16} color="#10b981" />
-              <Text style={styles.trustText}>Varno</Text>
-            </View>
-            <View style={styles.trustItem}>
-              <Ionicons name="flash" size={16} color="#10b981" />
-              <Text style={styles.trustText}>Hitro</Text>
+          </Animated.View>
+
+          {/* PSYCHOLOGY SECTION - Loss Aversion */}
+          <View style={styles.section}>
+            <View style={styles.glassCard}>
+              <BlurView intensity={10} tint="dark" style={styles.glassCardBlur}>
+                <Ionicons name="alert-circle" size={48} color="#ef4444" />
+                <Text style={styles.psychologyTitle}>
+                  Ali veš koliko denarja zapraviš?
+                </Text>
+                <Text style={styles.psychologyText}>
+                  Povprečna slovenska družina zapravi{" "}
+                  <Text style={styles.psychologyHighlight}>€200+ mesečno</Text>
+                  {"\n"}ker ne primerja cen!
+                </Text>
+                <View style={styles.psychologyStats}>
+                  <View style={styles.psychologyStat}>
+                    <Text style={styles.psychologyStatValue}>€2.400</Text>
+                    <Text style={styles.psychologyStatLabel}>na leto</Text>
+                  </View>
+                  <View style={styles.psychologyStat}>
+                    <Text style={styles.psychologyStatValue}>30%</Text>
+                    <Text style={styles.psychologyStatLabel}>prihranek</Text>
+                  </View>
+                </View>
+              </BlurView>
             </View>
           </View>
-        )}
-      </View>
+
+          {/* PRICE COMPARISON EXAMPLE */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Primeri cen</Text>
+            <Text style={styles.sectionSubtitle}>
+              Isti izdelki. Različne cene. Ti izbereš.
+            </Text>
+
+            <View style={styles.priceExamples}>
+              {PRICE_EXAMPLES.map((example, idx) => (
+                <View key={idx} style={styles.priceCard}>
+                  <BlurView intensity={15} tint="dark" style={styles.priceCardBlur}>
+                    <Text style={styles.priceProduct}>{example.product}</Text>
+                    <View style={styles.priceList}>
+                      {example.prices.map((price, pidx) => (
+                        <View
+                          key={pidx}
+                          style={[
+                            styles.priceRow,
+                            price.best && styles.priceRowBest,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.priceStore,
+                              price.best && styles.priceStoreBest,
+                            ]}
+                          >
+                            {price.store}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.priceValue,
+                              price.best && styles.priceValueBest,
+                            ]}
+                          >
+                            {price.price.toFixed(2)}€
+                          </Text>
+                          {price.best && (
+                            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.priceSavings}>
+                      <Ionicons name="trending-down" size={20} color="#10b981" />
+                      <Text style={styles.priceSavingsText}>
+                        Prihranek: {example.savings}
+                      </Text>
+                    </View>
+                  </BlurView>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* FEATURES */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Funkcije</Text>
+            <Text style={styles.sectionSubtitle}>
+              Vse kar potrebuješ za pametno nakupovanje
+            </Text>
+
+            <View style={styles.featuresGrid}>
+              {FEATURES.map((feature, idx) => (
+                <View key={idx} style={styles.featureCard}>
+                  <BlurView intensity={12} tint="dark" style={styles.featureCardBlur}>
+                    <View
+                      style={[
+                        styles.featureIcon,
+                        { backgroundColor: feature.color + "20" },
+                      ]}
+                    >
+                      <Ionicons
+                        name={feature.icon as any}
+                        size={32}
+                        color={feature.color}
+                      />
+                    </View>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>
+                      {feature.description}
+                    </Text>
+                  </BlurView>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* HOW IT WORKS */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Kako deluje?</Text>
+            <Text style={styles.sectionSubtitle}>
+              Tri preprosti koraki do prihrankov
+            </Text>
+
+            <View style={styles.howItWorks}>
+              {HOW_IT_WORKS.map((step, idx) => (
+                <View key={idx} style={styles.howStep}>
+                  <View style={styles.howStepNumber}>
+                    <LinearGradient
+                      colors={["#10b981", "#059669"]}
+                      style={styles.howStepNumberGradient}
+                    >
+                      <Text style={styles.howStepNumberText}>{step.step}</Text>
+                    </LinearGradient>
+                  </View>
+                  <View style={styles.howStepContent}>
+                    <Ionicons name={step.icon as any} size={28} color="#10b981" />
+                    <Text style={styles.howStepText}>{step.text}</Text>
+                  </View>
+                  {idx < HOW_IT_WORKS.length - 1 && (
+                    <View style={styles.howStepConnector} />
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* FINAL CTA */}
+          <View style={styles.finalCta}>
+            <Text style={styles.finalCtaTitle}>
+              Pripravljeni prihraniti?
+            </Text>
+            <Text style={styles.finalCtaSubtitle}>
+              Pridruži se tisočim Slovencem ki že varčujejo
+            </Text>
+
+            <TouchableOpacity
+              style={styles.ctaFinal}
+              onPress={handleDownloadApp}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={["#10b981", "#059669"]}
+                style={styles.ctaFinalGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Ionicons name="rocket" size={28} color="#fff" />
+                <Text style={styles.ctaFinalText}>PRENESI ZDAJ</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.finalCtaButtons}>
+              <TouchableOpacity style={styles.finalCtaSecondary} onPress={handleLogin}>
+                <Text style={styles.finalCtaSecondaryText}>Prijava</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.finalCtaSecondary} onPress={handleSignup}>
+                <Text style={styles.finalCtaSecondaryText}>Registracija</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={{ height: 60 }} />
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -545,200 +555,503 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a0a12",
+    backgroundColor: "#0a0614",
   },
-  skipButton: {
+  safeArea: {
+    flex: 1,
+  },
+  star: {
     position: "absolute",
-    right: 20,
-    zIndex: 10,
+    backgroundColor: "#fff",
+    borderRadius: 999,
+  },
+  floatingIcon: {
+    position: "absolute",
+    zIndex: 0,
+  },
+  iconTopLeft: {
+    top: 60,
+    left: -40,
+  },
+  iconTopRight: {
+    top: 120,
+    right: -30,
+  },
+  iconBottomLeft: {
+    bottom: 200,
+    left: -20,
+  },
+
+  // NAVBAR
+  navbar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    zIndex: 10,
+  },
+  navLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  navBrand: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.5,
+  },
+  navRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  navButton: {
+    paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
-  skipText: {
+  navButtonText: {
+    color: "#fff",
     fontSize: 14,
     fontWeight: "600",
-    color: "#9ca3af",
-    marginRight: 4,
   },
+  navButtonPrimary: {
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  navButtonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  navButtonPrimaryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  // SCROLL
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: 20,
     alignItems: "center",
   },
-  slide: {
-    width: SCREEN_WIDTH,
-    justifyContent: "center",
+
+  // HERO
+  heroSection: {
+    width: "100%",
+    maxWidth: 800,
+    paddingVertical: 60,
     alignItems: "center",
-    paddingHorizontal: 32,
-    paddingTop: 60,
   },
-  slideContent: {
+  heroContent: {
     alignItems: "center",
-    maxWidth: 360,
+    width: "100%",
   },
-  iconWrapper: {
+  heroTitle: {
+    fontSize: 56,
+    fontWeight: "900",
+    color: "#fff",
+    textAlign: "center",
+    lineHeight: 64,
+    letterSpacing: -2,
+    marginBottom: 20,
+  },
+  heroTitleAccent: {
+    color: "#10b981",
+  },
+  heroSubtitle: {
+    fontSize: 20,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 32,
     marginBottom: 32,
+    maxWidth: 600,
   },
-  iconCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+  liveBadge: {
+    marginBottom: 40,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  liveBadgeBlur: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  liveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#10b981",
+  },
+  liveText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#10b981",
+  },
+  userAvatars: {
+    flexDirection: "row",
+    marginLeft: -8,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#0a0614",
+    marginLeft: -8,
+  },
+  avatar1: {
+    backgroundColor: "#10b981",
+  },
+  avatar2: {
+    backgroundColor: "#3b82f6",
+  },
+  avatar3: {
+    backgroundColor: "#a855f7",
+  },
+  liveCount: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#d1d5db",
+  },
+  ctaPrimary: {
+    borderRadius: 30,
+    overflow: "hidden",
+    width: "100%",
+    maxWidth: 400,
+  },
+  ctaGradient: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    gap: 12,
   },
-  mainTitle: {
+  ctaText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
+  ctaFooter: {
+    marginTop: 16,
+    fontSize: 14,
+    color: "#6b7280",
+    fontStyle: "italic",
+  },
+
+  // SECTIONS
+  section: {
+    width: "100%",
+    maxWidth: 1000,
+    marginBottom: 80,
+  },
+  sectionTitle: {
     fontSize: 36,
     fontWeight: "900",
     color: "#fff",
     textAlign: "center",
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    marginBottom: 12,
+    letterSpacing: -1,
   },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#c4b5fd",
+  sectionSubtitle: {
+    fontSize: 18,
+    color: "#9ca3af",
     textAlign: "center",
+    marginBottom: 40,
+    lineHeight: 28,
+  },
+
+  // PSYCHOLOGY CARD
+  glassCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  glassCardBlur: {
+    padding: 40,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+  },
+  psychologyTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#ef4444",
+    textAlign: "center",
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  psychologyText: {
+    fontSize: 18,
+    color: "#d1d5db",
+    textAlign: "center",
+    lineHeight: 28,
+    marginBottom: 32,
+  },
+  psychologyHighlight: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#ef4444",
+  },
+  psychologyStats: {
+    flexDirection: "row",
+    gap: 40,
+  },
+  psychologyStat: {
+    alignItems: "center",
+  },
+  psychologyStatValue: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#10b981",
+  },
+  psychologyStatLabel: {
+    fontSize: 14,
+    color: "#9ca3af",
+    marginTop: 4,
+  },
+
+  // PRICE EXAMPLES
+  priceExamples: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 20,
+    justifyContent: "center",
+  },
+  priceCard: {
+    width: SCREEN_WIDTH > 768 ? 300 : "100%",
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  priceCardBlur: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  priceProduct: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
     marginBottom: 20,
   },
-  description: {
-    fontSize: 17,
-    fontWeight: "500",
-    color: "#94a3b8",
-    textAlign: "center",
-    lineHeight: 26,
-    marginBottom: 24,
+  priceList: {
+    gap: 12,
+    marginBottom: 20,
   },
-  highlightBadge: {
-    borderRadius: 30,
-    overflow: "hidden",
-    shadowColor: "#a855f7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  highlightGradient: {
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 30,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
-  highlightText: {
+  priceRowBest: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  priceStore: {
+    fontSize: 16,
+    color: "#9ca3af",
+    fontWeight: "600",
+    flex: 1,
+  },
+  priceStoreBest: {
+    color: "#10b981",
+    fontWeight: "700",
+  },
+  priceValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#d1d5db",
+    marginRight: 8,
+  },
+  priceValueBest: {
+    fontSize: 20,
+    color: "#10b981",
+    fontWeight: "900",
+  },
+  priceSavings: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+  },
+  priceSavingsText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#10b981",
+  },
+
+  // FEATURES
+  featuresGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 20,
+    justifyContent: "center",
+  },
+  featureCard: {
+    width: SCREEN_WIDTH > 768 ? 220 : (SCREEN_WIDTH - 60) / 2,
+    minWidth: 160,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  featureCardBlur: {
+    padding: 24,
+    alignItems: "center",
+    minHeight: 200,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  featureIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  featureTitle: {
     fontSize: 18,
     fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  featureDescription: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
+  // HOW IT WORKS
+  howItWorks: {
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
+  },
+  howStep: {
+    marginBottom: 20,
+  },
+  howStepNumber: {
+    borderRadius: 30,
+    overflow: "hidden",
+    alignSelf: "flex-start",
+    marginBottom: 12,
+  },
+  howStepNumberGradient: {
+    width: 60,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  howStepNumberText: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  howStepContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  howStepText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    flex: 1,
+  },
+  howStepConnector: {
+    width: 2,
+    height: 24,
+    backgroundColor: "rgba(16, 185, 129, 0.3)",
+    marginLeft: 30,
+    marginVertical: 8,
+  },
+
+  // FINAL CTA
+  finalCta: {
+    width: "100%",
+    maxWidth: 600,
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  finalCtaTitle: {
+    fontSize: 40,
+    fontWeight: "900",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 16,
+    letterSpacing: -1,
+  },
+  finalCtaSubtitle: {
+    fontSize: 18,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginBottom: 40,
+  },
+  ctaFinal: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 30,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  ctaFinalGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 22,
+    gap: 12,
+  },
+  ctaFinalText: {
+    fontSize: 20,
+    fontWeight: "900",
     color: "#fff",
     letterSpacing: 0.5,
   },
-  bottomSection: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-  },
-  dotsContainer: {
+  finalCtaButtons: {
     flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  dot: {
-    height: 10,
-    borderRadius: 5,
-    marginHorizontal: 5,
-  },
-  actionButton: {
-    borderRadius: 30,
-    overflow: "hidden",
-    shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  actionButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-  },
-  actionButtonText: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 1,
-  },
-  trustRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 20,
-    gap: 24,
-  },
-  trustItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  trustText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#6b7280",
-  },
-  // Celebration styles
-  celebrationContainer: {
-    flex: 1,
-    backgroundColor: "#0a0a12",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  particle: {
-    position: "absolute",
-  },
-  particleBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  particleText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#fff",
-  },
-  rocketContainer: {
-    position: "absolute",
-    bottom: 100,
-    alignSelf: "center",
-  },
-  rocketEmoji: {
-    fontSize: 80,
-  },
-  celebrationTextContainer: {
-    alignItems: "center",
-  },
-  celebrationTitle: {
-    fontSize: 52,
-    fontWeight: "900",
-    color: "#22c55e",
-    textAlign: "center",
-    letterSpacing: 2,
-    textShadowColor: "rgba(34, 197, 94, 0.5)",
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 20,
-  },
-  celebrationSubtitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#94a3b8",
+    gap: 16,
     marginTop: 16,
+  },
+  finalCtaSecondary: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  finalCtaSecondaryText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
   },
 });
