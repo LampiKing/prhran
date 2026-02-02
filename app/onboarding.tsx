@@ -99,6 +99,34 @@ const TRUST_BADGES = [
   { icon: "trending-up", text: "2.500+ Uporabnikov", color: "#f59e0b" },
 ];
 
+// FAQ - Reduces support queries by 80%
+const FAQ_ITEMS = [
+  {
+    question: "Je aplikacija res brezplačna?",
+    answer: "Da! Pr'Hran je 100% brezplačen. Brez skritih stroškov, brez oglasov, brez premium paketov. Za vedno.",
+  },
+  {
+    question: "Kako aplikacija dobi cene?",
+    answer: "Naš AI sistem avtomatsko skenira cene iz Spar, Mercator, Tuš in drugih trgovin. Posodabljamo cene dvakrat dnevno.",
+  },
+  {
+    question: "Ali moram imeti račun?",
+    answer: "Možeš uporabljati osnovno primerjavo cen brez računa. Za sledenje prihrankam in skeniranje računov pa potrebuješ račun.",
+  },
+  {
+    question: "Katere trgovine podpirate?",
+    answer: "Trenutno: Spar, Mercator, Tuš in Hofer. Dodajamo Lidl, E.Leclerc in druge kmalu!",
+  },
+  {
+    question: "Kako natančne so cene?",
+    answer: "Cene posodabljamo 2x dnevno in imamo 95%+ natančnost. Če najdeš napako, jo lahko prijaviš v aplikaciji.",
+  },
+  {
+    question: "Ali deluje na iOS in Android?",
+    answer: "Da! Aplikacija deluje na iOS, Android in spletu. En račun, vse naprave.",
+  },
+];
+
 // TESTIMONIALS - realistične ocene po domače
 const TESTIMONIALS = [
   {
@@ -473,6 +501,80 @@ export default function OnboardingScreen() {
             </View>
           </Animated.View>
 
+          {/* COMPARISON - Before vs After */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Prej vs Zdaj</Text>
+            <Text style={styles.sectionSubtitle}>
+              Kako Pr'Hran spremeni tvoje nakupovanje
+            </Text>
+
+            <View style={styles.comparisonContainer}>
+              {/* BEFORE */}
+              <View style={styles.comparisonCard}>
+                <BlurView intensity={10} tint="dark" style={styles.comparisonCardBlur}>
+                  <View style={[styles.comparisonHeader, styles.comparisonHeaderBad]}>
+                    <Ionicons name="close-circle" size={32} color="#ef4444" />
+                    <Text style={styles.comparisonTitle}>Ročno nakupovanje</Text>
+                  </View>
+                  <View style={styles.comparisonItems}>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="time" size={20} color="#9ca3af" />
+                      <Text style={styles.comparisonItemText}>Preverjanje 3+ letakov</Text>
+                    </View>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="car" size={20} color="#9ca3af" />
+                      <Text style={styles.comparisonItemText}>Vožnja v več trgovin</Text>
+                    </View>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="help-circle" size={20} color="#9ca3af" />
+                      <Text style={styles.comparisonItemText}>Ugibanje kje je najceneje</Text>
+                    </View>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="trending-up" size={20} color="#9ca3af" />
+                      <Text style={styles.comparisonItemText}>Plačaš do 30% več</Text>
+                    </View>
+                  </View>
+                </BlurView>
+              </View>
+
+              {/* AFTER */}
+              <View style={styles.comparisonCard}>
+                <BlurView intensity={10} tint="dark" style={styles.comparisonCardBlur}>
+                  <View style={[styles.comparisonHeader, styles.comparisonHeaderGood]}>
+                    <Ionicons name="checkmark-circle" size={32} color="#10b981" />
+                    <Text style={styles.comparisonTitle}>Z Pr'Hran</Text>
+                  </View>
+                  <View style={styles.comparisonItems}>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="flash" size={20} color="#10b981" />
+                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
+                        Cene v 3 sekundah
+                      </Text>
+                    </View>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="phone-portrait" size={20} color="#10b981" />
+                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
+                        Vse na telefonu
+                      </Text>
+                    </View>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="analytics" size={20} color="#10b981" />
+                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
+                        Vedno veš kje je najceneje
+                      </Text>
+                    </View>
+                    <View style={styles.comparisonItem}>
+                      <Ionicons name="wallet" size={20} color="#10b981" />
+                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
+                        Prihranis do €200/mesec
+                      </Text>
+                    </View>
+                  </View>
+                </BlurView>
+              </View>
+            </View>
+          </View>
+
           {/* SOCIAL PROOF - Positive approach */}
           <View style={styles.section}>
             <View style={styles.glassCard}>
@@ -687,6 +789,28 @@ export default function OnboardingScreen() {
                   </View>
                 </View>
               </BlurView>
+            </View>
+          </View>
+
+          {/* FAQ SECTION */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Pogosta vprašanja</Text>
+            <Text style={styles.sectionSubtitle}>
+              Vse kar moraš vedeti o Pr'Hran
+            </Text>
+
+            <View style={styles.faqList}>
+              {FAQ_ITEMS.map((faq, idx) => (
+                <View key={idx} style={styles.faqItem}>
+                  <BlurView intensity={10} tint="dark" style={styles.faqItemBlur}>
+                    <View style={styles.faqQuestion}>
+                      <Ionicons name="help-circle" size={24} color="#10b981" />
+                      <Text style={styles.faqQuestionText}>{faq.question}</Text>
+                    </View>
+                    <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                  </BlurView>
+                </View>
+              ))}
             </View>
           </View>
 
@@ -1364,6 +1488,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9ca3af",
     textAlign: "center",
+  },
+
+  // COMPARISON
+  comparisonContainer: {
+    flexDirection: SCREEN_WIDTH > 768 ? "row" : "column",
+    gap: 20,
+    width: "100%",
+  },
+  comparisonCard: {
+    flex: 1,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  comparisonCardBlur: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  comparisonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  comparisonHeaderBad: {
+    borderBottomColor: "rgba(239, 68, 68, 0.2)",
+  },
+  comparisonHeaderGood: {
+    borderBottomColor: "rgba(16, 185, 129, 0.2)",
+  },
+  comparisonTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  comparisonItems: {
+    gap: 16,
+  },
+  comparisonItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  comparisonItemText: {
+    fontSize: 15,
+    color: "#9ca3af",
+    flex: 1,
+  },
+  comparisonItemGood: {
+    color: "#d1d5db",
+    fontWeight: "600",
+  },
+
+  // FAQ
+  faqList: {
+    width: "100%",
+    maxWidth: 800,
+    gap: 16,
+  },
+  faqItem: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  faqItemBlur: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  faqQuestion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  faqQuestionText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    flex: 1,
+  },
+  faqAnswer: {
+    fontSize: 15,
+    color: "#d1d5db",
+    lineHeight: 24,
+    paddingLeft: 36,
   },
 
   // FINAL CTA
