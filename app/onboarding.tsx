@@ -1,14 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Animated,
-  Easing,
-  Platform,
   Dimensions,
+  Platform,
+  StatusBar,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,298 +16,113 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Logo from "../lib/Logo";
 import { BlurView } from "expo-blur";
+import Animated, {
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolate,
+} from "react-native-reanimated";
+import Logo from "../lib/Logo";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ONBOARDING_KEY = "prhran_onboarding_completed";
 
-// Stars background generator
-const generateStars = (count: number) => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    size: Math.random() * 2 + 1,
-    opacity: Math.random() * 0.7 + 0.3,
-    delay: Math.random() * 3000,
-  }));
-};
+// --- DATA ---
+// Vsi podatki so v slovenščini, kot zahtevano.
 
-const STARS = generateStars(50); // Reduced from 150 for better performance
+const TRUST_METRICS = [
+  { value: "14.230€", label: "DANES PRIHRANJENO" },
+  { value: "5.000+", label: "UPORABNIKOV" },
+  { value: "4.9/5", label: "OCENA" },
+];
 
-// Primer cen - REALNI podatki
-const PRICE_EXAMPLES = [
+const REVIEWS = [
   {
-    product: "Mleko 1L",
-    prices: [
-      { store: "Tuš", price: 1.19, best: true },
-      { store: "Spar", price: 1.29, best: false },
-      { store: "Mercator", price: 1.35, best: false },
-    ],
-    savings: "0.16€ (13%)",
+    name: "Ana K.",
+    role: "Maribor",
+    text: "Končno vem kje je Barilla najcenejša. Prihranila 30€ ta teden!",
+    stars: 5,
   },
   {
-    product: "Kruh 500g",
-    prices: [
-      { store: "Hofer", price: 0.89, best: true },
-      { store: "Mercator", price: 1.09, best: false },
-      { store: "Spar", price: 1.15, best: false },
-    ],
-    savings: "0.26€ (23%)",
+    name: "Tomaž N.",
+    role: "Ljubljana",
+    text: "Top aplikacija. Prhran Family uporabljamo vsi doma.",
+    stars: 5,
+  },
+  {
+    name: "Maja Z.",
+    role: "Celje",
+    text: "Vsak mesec mi ostane za eno polno košarico denarja. Hvala!",
+    stars: 5,
   },
 ];
 
 const FEATURES = [
   {
-    icon: "search",
-    title: "Primerjaj cene",
-    description: "V sekundi vidiš najnižjo ceno med vsemi trgovinami",
-    color: "#10b981",
+    icon: "scan",
+    title: "Skeniraj in Primerjaj",
+    desc: "Slikaj izdelek in takoj ugotovi, kje je cenejši.",
   },
   {
-    icon: "camera",
-    title: "Skeniraj račun",
-    description: "Slikaj račun in spremljaj dejanske prihranke",
-    color: "#a855f7",
+    icon: "cart",
+    title: "Pametna Košarica",
+    desc: "Naredi seznam, mi ti povemo v katero trgovino se splača.",
   },
   {
-    icon: "list",
-    title: "Pameten seznam",
-    description: "Naredi seznam in mi ti povemo kje kupit",
-    color: "#3b82f6",
-  },
-  {
-    icon: "wallet",
-    title: "Sledenje prihrankam",
-    description: "Vidiš koliko si dejansko prihranil ta mesec",
-    color: "#f59e0b",
+    icon: "notifications",
+    title: "Obvestila o Akcijah",
+    desc: "Ne zamudi, ko tvoj najljubši izdelek znižajo.",
   },
 ];
 
-const HOW_IT_WORKS = [
-  { step: "1", text: "Išči izdelek", icon: "search" },
-  { step: "2", text: "Primerjaj cene", icon: "analytics" },
-  { step: "3", text: "Kupi najceneje", icon: "checkmark-circle" },
-];
+// --- COMPONENTS ---
 
-// TRUST BADGES
-const TRUST_BADGES = [
-  { icon: "shield-checkmark", text: "100% Zastonj", color: "#10b981" },
-  { icon: "lock-closed", text: "Varno & Zasebno", color: "#3b82f6" },
-  { icon: "flag", text: "Made in Slovenia", color: "#ef4444" },
-  { icon: "trending-up", text: "2.500+ Uporabnikov", color: "#f59e0b" },
-];
-
-// FAQ - Reduces support queries by 80%
-const FAQ_ITEMS = [
-  {
-    question: "Je aplikacija res brezplačna?",
-    answer: "Da! Pr'Hran je 100% brezplačen. Brez skritih stroškov, brez oglasov, brez premium paketov. Za vedno.",
-  },
-  {
-    question: "Kako aplikacija dobi cene?",
-    answer: "Naš AI sistem avtomatsko skenira cene iz Spar, Mercator, Tuš in drugih trgovin. Posodabljamo cene dvakrat dnevno.",
-  },
-  {
-    question: "Ali moram imeti račun?",
-    answer: "Možeš uporabljati osnovno primerjavo cen brez računa. Za sledenje prihrankam in skeniranje računov pa potrebuješ račun.",
-  },
-  {
-    question: "Katere trgovine podpirate?",
-    answer: "Trenutno: Spar, Mercator, Tuš in Hofer. Dodajamo Lidl, E.Leclerc in druge kmalu!",
-  },
-  {
-    question: "Kako natančne so cene?",
-    answer: "Cene posodabljamo 2x dnevno in imamo 95%+ natančnost. Če najdeš napako, jo lahko prijaviš v aplikaciji.",
-  },
-  {
-    question: "Ali deluje na iOS in Android?",
-    answer: "Da! Aplikacija deluje na iOS, Android in spletu. En račun, vse naprave.",
-  },
-];
-
-// TESTIMONIALS - realistične ocene po domače
-const TESTIMONIALS = [
-  {
-    name: "Marija K.",
-    location: "Žalec",
-    rating: 5,
-    date: "pred 3 dnevi",
-    text: "js sm mati samohranilka pa ta aplikacija mi je res kul pomagala... zdej tut ce nimam cajta hodt v vse trgovine vem kje kupim najcenej. sm ze 50€ prihranka ta mesec mam!",
-    verified: true,
-  },
-  {
-    name: "Andrej T.",
-    location: "Kamnik",
-    rating: 5,
-    date: "pred tednom",
-    text: "Jst sm bil vedno skeptičen do takih aplikacij ampak tale je res vredu. Cene se dejansko ujemajo, enkrat sm šel preverjat v Spar pa je bla cena taka kot je pisala. Top.",
-    verified: true,
-  },
-  {
-    name: "Nina M.",
-    location: "Ljubljana",
-    rating: 4,
-    date: "pred 2 tedni",
-    text: "super app samo drgač bi blo fajn ce bi blo tut za Lidl not ane... sam sej tko je tut ok vseeno. vsak mesec kake 30-40€ prihranka na nakupih mam sam zarad tega",
-    verified: false,
-  },
-  {
-    name: "Janez P.",
-    location: "Velenje",
-    rating: 5,
-    date: "pred 4 dnevi",
-    text: "Odlična zadeva!! Glede na to da mamo doma 4 otroke in kupujemo dost živil je res velik prihranek. Žena je navdušena ker ne rabi več po vseh letakih gledat katere akcije so. Priporočam!",
-    verified: true,
-  },
-  {
-    name: "Sara L.",
-    location: "Maribor",
-    rating: 4,
-    date: "pred 5 dnevi",
-    text: "meni je super... edino kdaj mal zamuja z akcijami ampak ponavad je vse ok. def priporocam ce hoces prihranjt mal denarc :)",
-    verified: false,
-  },
-  {
-    name: "Miha B.",
-    location: "Krško",
-    rating: 5,
-    date: "pred tednom",
-    text: "Ej tole je pa res best app k sm jo probu za nakupe. Prej sm su vedno u isti spar zdej pa kukam kje je kaj najbl pocen pa grem tam. Brez panike priporocam 👍",
-    verified: true,
-  },
-  {
-    name: "Petra S.",
-    location: "Celje",
-    rating: 4,
-    date: "pred 2 tedni",
-    text: "Zelo uporabna aplikacija, enostavna za uporabo. Edino kar mi manjka je še več trgovin ampak razumem da rabijo čas za vse. Vseeno 4 zvezdice!",
-    verified: false,
-  },
-  {
-    name: "Luka V.",
-    location: "Novo mesto",
-    rating: 5,
-    date: "pred 6 dnevi",
-    text: "kr use 5 zvezdic dam... sm mel ze par takih app k so ble kr krneki ampak ta pa dela point. cene so realne pa se uplodas lahko raune kar je tut kr kul featura",
-    verified: true,
-  },
-];
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [liveUsers] = useState(2847); // Fixed number instead of random
-  const [showStickyCTA, setShowStickyCTA] = useState(false);
+  const scrollY = useSharedValue(0);
+  const heroOpacity = useSharedValue(0);
+  const heroScale = useSharedValue(0.9);
+  const glowPulse = useSharedValue(0.6);
 
-  // Animations
-  const starTwinkle = useRef(new Animated.Value(0)).current;
-  const floatY = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const heroScale = useRef(new Animated.Value(0.95)).current;
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-  const stickyCtaAnim = useRef(new Animated.Value(0)).current;
-
+  // Initial animations
   useEffect(() => {
-    // Star twinkle
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(starTwinkle, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(starTwinkle, {
-          toValue: 0,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    heroOpacity.value = withTiming(1, { duration: 1000 });
+    heroScale.value = withSpring(1, { damping: 12 });
+    glowPulse.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 2000 }),
+        withTiming(0.6, { duration: 2000 })
+      ),
+      -1,
+      true
+    );
 
-    // Float animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatY, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatY, {
-          toValue: 0,
-          duration: 3000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Pulse CTA
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Hero entrance
-    Animated.parallel([
-      Animated.spring(heroScale, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(heroOpacity, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Mark onboarding as seen immediately (simpler flow)
+    AsyncStorage.setItem("prhran_onboarding_completed", "true").catch(console.error);
   }, []);
 
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
   const triggerHaptic = () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleScroll = (event: any) => {
-    const scrollY = event.nativeEvent.contentOffset.y;
-    const shouldShow = scrollY > 600; // Show after scrolling 600px
-
-    if (shouldShow !== showStickyCTA) {
-      setShowStickyCTA(shouldShow);
-      Animated.spring(stickyCtaAnim, {
-        toValue: shouldShow ? 1 : 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
-
-  const handleDownloadApp = async () => {
+  const handleAction = () => {
     triggerHaptic();
-    // Za zdaj samo označi onboarding kot completed
-    try {
-      await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-    } catch (error) {
-      console.error("Error:", error);
-    }
-    // Alert ali modal da app še ni na storu
-    alert("Aplikacija bo kmalu na voljo v App Store in Google Play! 🚀");
+    // Redirect to auth directly
+    router.push("/auth?mode=register");
   };
 
   const handleLogin = () => {
@@ -315,583 +130,269 @@ export default function OnboardingScreen() {
     router.push("/auth?mode=login");
   };
 
-  const handleSignup = () => {
-    triggerHaptic();
-    router.push("/auth?mode=register");
-  };
+  // --- ANIMATED STYLES ---
 
-  const translateY = floatY.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -15],
+  const heroStyle = useAnimatedStyle(() => {
+    return {
+      opacity: heroOpacity.value,
+      transform: [
+        { scale: heroScale.value },
+        { translateY: interpolate(scrollY.value, [0, 300], [0, 100], Extrapolate.CLAMP) },
+      ],
+    };
+  });
+
+  const glowStyle = useAnimatedStyle(() => {
+    return {
+      opacity: glowPulse.value,
+      transform: [
+        { scale: interpolate(glowPulse.value, [0.6, 0.8], [1, 1.2]) },
+      ],
+    };
+  });
+
+  const stickyHeaderStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [100, 200], [0, 1], Extrapolate.CLAMP);
+    return {
+      opacity,
+      pointerEvents: opacity > 0.5 ? "auto" : "none",
+    };
   });
 
   return (
     <View style={styles.container}>
-      {/* Dark space background gradient */}
-      <LinearGradient
-        colors={["#0a0614", "#1a0f2e", "#0f0a1e", "#1e1137"]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      <StatusBar barStyle="light-content" />
 
-      {/* Animated stars */}
-      {STARS.map((star) => (
-        <Animated.View
-          key={star.id}
-          style={[
-            styles.star,
-            {
-              left: `${star.left}%`,
-              top: `${star.top}%`,
-              width: star.size,
-              height: star.size,
-              opacity: starTwinkle.interpolate({
-                inputRange: [0, 0.5, 1],
-                outputRange: [star.opacity, star.opacity * 0.3, star.opacity],
-              }),
-            },
-          ]}
+      {/* BACKGROUND */}
+      <View style={styles.backgroundContainer}>
+        <LinearGradient
+          colors={["#0a0a12", "#12081f", "#1a0a2e", "#270a3a", "#0f0a1e"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
         />
-      ))}
+        {/* Animated Glow in Center */}
+        <AnimatedLinearGradient
+          colors={["rgba(168, 85, 247, 0.4)", "transparent"]}
+          style={[styles.glowOrb, glowStyle]}
+          start={{ x: 0.5, y: 0.5 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </View>
 
-      {/* Floating icons background */}
-      <Animated.View
-        style={[
-          styles.floatingIcon,
-          styles.iconTopLeft,
-          { transform: [{ translateY }] },
-        ]}
-      >
-        <Ionicons name="cart-outline" size={120} color="rgba(16, 185, 129, 0.08)" />
-      </Animated.View>
-      <Animated.View
-        style={[
-          styles.floatingIcon,
-          styles.iconTopRight,
-          { transform: [{ translateY: floatY.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }] },
-        ]}
-      >
-        <Ionicons name="pricetag-outline" size={100} color="rgba(168, 85, 247, 0.08)" />
-      </Animated.View>
-      <Animated.View
-        style={[
-          styles.floatingIcon,
-          styles.iconBottomLeft,
-          { transform: [{ translateY: floatY.interpolate({ inputRange: [0, 1], outputRange: [0, -25] }) }] },
-        ]}
-      >
-        <Ionicons name="wallet-outline" size={90} color="rgba(59, 130, 246, 0.08)" />
-      </Animated.View>
-
-      <SafeAreaView style={styles.safeArea}>
-        {/* NAVBAR - Simplified for better conversion */}
+      {/* NAVBAR */}
+      <SafeAreaView edges={['top']} style={styles.navbarSafeArea}>
         <View style={styles.navbar}>
           <View style={styles.navLeft}>
-            <Logo size={40} />
-            <Text style={styles.navBrand}>Pr'Hran</Text>
+            <Logo size={32} />
+            <Text style={styles.navLogoText}>Pr'Hran</Text>
           </View>
-          <TouchableOpacity
-            style={styles.navLoginLink}
-            onPress={handleLogin}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.navLoginText}>Prijava</Text>
-            <Ionicons name="arrow-forward" size={16} color="#9ca3af" />
-          </TouchableOpacity>
+          <View style={styles.navRight}>
+            <TouchableOpacity onPress={handleLogin} style={styles.navBtnLink}>
+              <Text style={styles.navBtnLinkText}>Prijava</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleAction} style={styles.navBtnPrimary}>
+              <Text style={styles.navBtnPrimaryText}>Registracija</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      </SafeAreaView>
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-        >
-          {/* HERO SECTION */}
-          <Animated.View
-            style={[
-              styles.heroSection,
-              {
-                opacity: heroOpacity,
-                transform: [{ scale: heroScale }],
-              },
-            ]}
-          >
-            <View style={styles.heroContent}>
-              <Text style={styles.heroTitle}>
-                Prihrani do{" "}
-                <Text style={styles.heroTitleAccent}>30% na Hrani</Text>
-              </Text>
-
-              <Text style={styles.heroSubtitle}>
-                Primerjaj cene živil v vseh slovenskih trgovinah.{"\n"}
-                Pametno. Hitro. Zastonj.
-              </Text>
-
-              {/* Hero stats - immediate impact */}
-              <View style={styles.heroStats}>
-                <View style={styles.heroStat}>
-                  <Text style={styles.heroStatNumber}>2.547+</Text>
-                  <Text style={styles.heroStatLabel}>uporabnikov</Text>
-                </View>
-                <View style={styles.heroStatDivider} />
-                <View style={styles.heroStat}>
-                  <Text style={styles.heroStatNumber}>€200+</Text>
-                  <Text style={styles.heroStatLabel}>prihranek/mesec</Text>
-                </View>
-                <View style={styles.heroStatDivider} />
-                <View style={styles.heroStat}>
-                  <Text style={styles.heroStatNumber}>4.6★</Text>
-                  <Text style={styles.heroStatLabel}>ocena</Text>
-                </View>
-              </View>
-
-              {/* LIVE users badge */}
-              <View style={styles.liveBadge}>
-                <BlurView intensity={20} tint="dark" style={styles.liveBadgeBlur}>
-                  <View style={styles.liveIndicator}>
-                    <View style={styles.liveDot} />
-                    <Text style={styles.liveText}>LIVE</Text>
-                  </View>
-                  <View style={styles.userAvatars}>
-                    <View style={[styles.avatar, styles.avatar1]} />
-                    <View style={[styles.avatar, styles.avatar2]} />
-                    <View style={[styles.avatar, styles.avatar3]} />
-                  </View>
-                  <Text style={styles.liveCount}>
-                    {liveUsers.toLocaleString()}+ uporabnikov aktivnih
-                  </Text>
-                </BlurView>
-              </View>
-
-              {/* Primary CTA */}
-              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                <TouchableOpacity
-                  style={styles.ctaPrimary}
-                  onPress={handleDownloadApp}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient
-                    colors={["#10b981", "#059669", "#047857"]}
-                    style={styles.ctaGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Ionicons name="download" size={24} color="#fff" />
-                    <Text style={styles.ctaText}>PRENESI APLIKACIJO</Text>
-                    <Ionicons name="arrow-forward" size={24} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </Animated.View>
-
-              <Text style={styles.ctaFooter}>
-                Brezplačno. Brez oglasov. Za vedno.
-              </Text>
-
-              {/* Trust badges */}
-              <View style={styles.trustBadges}>
-                {TRUST_BADGES.map((badge, idx) => (
-                  <View key={idx} style={styles.trustBadge}>
-                    <Ionicons name={badge.icon as any} size={20} color={badge.color} />
-                    <Text style={styles.trustBadgeText}>{badge.text}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* COMPARISON - Before vs After */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Prej vs Zdaj</Text>
-            <Text style={styles.sectionSubtitle}>
-              Kako Pr'Hran spremeni tvoje nakupovanje
-            </Text>
-
-            <View style={styles.comparisonContainer}>
-              {/* BEFORE */}
-              <View style={styles.comparisonCard}>
-                <BlurView intensity={10} tint="dark" style={styles.comparisonCardBlur}>
-                  <View style={[styles.comparisonHeader, styles.comparisonHeaderBad]}>
-                    <Ionicons name="close-circle" size={32} color="#ef4444" />
-                    <Text style={styles.comparisonTitle}>Ročno nakupovanje</Text>
-                  </View>
-                  <View style={styles.comparisonItems}>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="time" size={20} color="#9ca3af" />
-                      <Text style={styles.comparisonItemText}>Preverjanje 3+ letakov</Text>
-                    </View>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="car" size={20} color="#9ca3af" />
-                      <Text style={styles.comparisonItemText}>Vožnja v več trgovin</Text>
-                    </View>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="help-circle" size={20} color="#9ca3af" />
-                      <Text style={styles.comparisonItemText}>Ugibanje kje je najceneje</Text>
-                    </View>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="trending-up" size={20} color="#9ca3af" />
-                      <Text style={styles.comparisonItemText}>Plačaš do 30% več</Text>
-                    </View>
-                  </View>
-                </BlurView>
-              </View>
-
-              {/* AFTER */}
-              <View style={styles.comparisonCard}>
-                <BlurView intensity={10} tint="dark" style={styles.comparisonCardBlur}>
-                  <View style={[styles.comparisonHeader, styles.comparisonHeaderGood]}>
-                    <Ionicons name="checkmark-circle" size={32} color="#10b981" />
-                    <Text style={styles.comparisonTitle}>Z Pr'Hran</Text>
-                  </View>
-                  <View style={styles.comparisonItems}>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="flash" size={20} color="#10b981" />
-                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
-                        Cene v 3 sekundah
-                      </Text>
-                    </View>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="phone-portrait" size={20} color="#10b981" />
-                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
-                        Vse na telefonu
-                      </Text>
-                    </View>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="analytics" size={20} color="#10b981" />
-                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
-                        Vedno veš kje je najceneje
-                      </Text>
-                    </View>
-                    <View style={styles.comparisonItem}>
-                      <Ionicons name="wallet" size={20} color="#10b981" />
-                      <Text style={[styles.comparisonItemText, styles.comparisonItemGood]}>
-                        Prihranis do €200/mesec
-                      </Text>
-                    </View>
-                  </View>
-                </BlurView>
-              </View>
-            </View>
-          </View>
-
-          {/* SOCIAL PROOF - Positive approach */}
-          <View style={styles.section}>
-            <View style={styles.glassCard}>
-              <BlurView intensity={10} tint="dark" style={styles.glassCardBlur}>
-                <Ionicons name="people" size={48} color="#10b981" />
-                <Text style={styles.psychologyTitle}>
-                  Pridruži se 2.500+ pametnim kupcem
-                </Text>
-                <Text style={styles.psychologyText}>
-                  Povprečen uporabnik prihrani{" "}
-                  <Text style={styles.psychologyHighlight}>€200+ mesečno</Text>
-                  {"\n"}samo s primerjavo cen!
-                </Text>
-                <View style={styles.psychologyStats}>
-                  <View style={styles.psychologyStat}>
-                    <Text style={styles.psychologyStatValue}>€2.400</Text>
-                    <Text style={styles.psychologyStatLabel}>letni prihranek</Text>
-                  </View>
-                  <View style={styles.psychologyStat}>
-                    <Text style={styles.psychologyStatValue}>do 30%</Text>
-                    <Text style={styles.psychologyStatLabel}>prihranka</Text>
-                  </View>
-                </View>
-              </BlurView>
-            </View>
-          </View>
-
-          {/* PRICE COMPARISON EXAMPLE */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Primeri cen</Text>
-            <Text style={styles.sectionSubtitle}>
-              Isti izdelki. Različne cene. Ti izbereš.
-            </Text>
-
-            <View style={styles.priceExamples}>
-              {PRICE_EXAMPLES.map((example, idx) => (
-                <View key={idx} style={styles.priceCard}>
-                  <BlurView intensity={15} tint="dark" style={styles.priceCardBlur}>
-                    <Text style={styles.priceProduct}>{example.product}</Text>
-                    <View style={styles.priceList}>
-                      {example.prices.map((price, pidx) => (
-                        <View
-                          key={pidx}
-                          style={[
-                            styles.priceRow,
-                            price.best && styles.priceRowBest,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.priceStore,
-                              price.best && styles.priceStoreBest,
-                            ]}
-                          >
-                            {price.store}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.priceValue,
-                              price.best && styles.priceValueBest,
-                            ]}
-                          >
-                            {price.price.toFixed(2)}€
-                          </Text>
-                          {price.best && (
-                            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                    <View style={styles.priceSavings}>
-                      <Ionicons name="trending-down" size={20} color="#10b981" />
-                      <Text style={styles.priceSavingsText}>
-                        Prihranek: {example.savings}
-                      </Text>
-                    </View>
-                  </BlurView>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* FEATURES */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Funkcije</Text>
-            <Text style={styles.sectionSubtitle}>
-              Vse kar potrebuješ za pametno nakupovanje
-            </Text>
-
-            <View style={styles.featuresGrid}>
-              {FEATURES.map((feature, idx) => (
-                <View key={idx} style={styles.featureCard}>
-                  <BlurView intensity={12} tint="dark" style={styles.featureCardBlur}>
-                    <View
-                      style={[
-                        styles.featureIcon,
-                        { backgroundColor: feature.color + "20" },
-                      ]}
-                    >
-                      <Ionicons
-                        name={feature.icon as any}
-                        size={32}
-                        color={feature.color}
-                      />
-                    </View>
-                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                    <Text style={styles.featureDescription}>
-                      {feature.description}
-                    </Text>
-                  </BlurView>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* HOW IT WORKS */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Kako deluje?</Text>
-            <Text style={styles.sectionSubtitle}>
-              Tri preprosti koraki do prihrankov
-            </Text>
-
-            <View style={styles.howItWorks}>
-              {HOW_IT_WORKS.map((step, idx) => (
-                <View key={idx} style={styles.howStep}>
-                  <View style={styles.howStepNumber}>
-                    <LinearGradient
-                      colors={["#10b981", "#059669"]}
-                      style={styles.howStepNumberGradient}
-                    >
-                      <Text style={styles.howStepNumberText}>{step.step}</Text>
-                    </LinearGradient>
-                  </View>
-                  <View style={styles.howStepContent}>
-                    <Ionicons name={step.icon as any} size={28} color="#10b981" />
-                    <Text style={styles.howStepText}>{step.text}</Text>
-                  </View>
-                  {idx < HOW_IT_WORKS.length - 1 && (
-                    <View style={styles.howStepConnector} />
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* TESTIMONIALS */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Kaj pravijo uporabniki</Text>
-            <Text style={styles.sectionSubtitle}>
-              Več kot 2.500+ zadovoljnih uporabnikov po Sloveniji
-            </Text>
-
-            <View style={styles.testimonialsGrid}>
-              {TESTIMONIALS.map((testimonial, idx) => (
-                <View key={idx} style={styles.testimonialCard}>
-                  <BlurView intensity={12} tint="dark" style={styles.testimonialCardBlur}>
-                    {/* Header */}
-                    <View style={styles.testimonialHeader}>
-                      <View style={styles.testimonialAvatar}>
-                        <Text style={styles.testimonialAvatarText}>
-                          {testimonial.name.charAt(0)}
-                        </Text>
-                      </View>
-                      <View style={styles.testimonialInfo}>
-                        <View style={styles.testimonialNameRow}>
-                          <Text style={styles.testimonialName}>{testimonial.name}</Text>
-                          {testimonial.verified && (
-                            <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                          )}
-                        </View>
-                        <Text style={styles.testimonialLocation}>
-                          {testimonial.location} • {testimonial.date}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Rating */}
-                    <View style={styles.testimonialRating}>
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Ionicons
-                          key={i}
-                          name={i < testimonial.rating ? "star" : "star-outline"}
-                          size={16}
-                          color={i < testimonial.rating ? "#fbbf24" : "#4b5563"}
-                        />
-                      ))}
-                    </View>
-
-                    {/* Review text */}
-                    <Text style={styles.testimonialText}>{testimonial.text}</Text>
-                  </BlurView>
-                </View>
-              ))}
-            </View>
-
-            {/* Average rating */}
-            <View style={styles.ratingOverview}>
-              <BlurView intensity={15} tint="dark" style={styles.ratingOverviewBlur}>
-                <View style={styles.ratingOverviewContent}>
-                  <View style={styles.ratingScore}>
-                    <Text style={styles.ratingScoreNumber}>4.6</Text>
-                    <View style={styles.ratingStars}>
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Ionicons key={i} name="star" size={20} color="#fbbf24" />
-                      ))}
-                    </View>
-                    <Text style={styles.ratingScoreText}>od 5 zvezdic</Text>
-                  </View>
-                  <View style={styles.ratingStats}>
-                    <Text style={styles.ratingStatsNumber}>2.547+</Text>
-                    <Text style={styles.ratingStatsLabel}>zadovoljnih uporabnikov</Text>
-                  </View>
-                </View>
-              </BlurView>
-            </View>
-          </View>
-
-          {/* FAQ SECTION */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pogosta vprašanja</Text>
-            <Text style={styles.sectionSubtitle}>
-              Vse kar moraš vedeti o Pr'Hran
-            </Text>
-
-            <View style={styles.faqList}>
-              {FAQ_ITEMS.map((faq, idx) => (
-                <View key={idx} style={styles.faqItem}>
-                  <BlurView intensity={10} tint="dark" style={styles.faqItemBlur}>
-                    <View style={styles.faqQuestion}>
-                      <Ionicons name="help-circle" size={24} color="#10b981" />
-                      <Text style={styles.faqQuestionText}>{faq.question}</Text>
-                    </View>
-                    <Text style={styles.faqAnswer}>{faq.answer}</Text>
-                  </BlurView>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* FINAL CTA */}
-          <View style={styles.finalCta}>
-            <Text style={styles.finalCtaTitle}>
-              Pripravljeni prihraniti?
-            </Text>
-            <Text style={styles.finalCtaSubtitle}>
-              Pridruži se tisočim Slovencem ki že varčujejo
-            </Text>
-
-            <TouchableOpacity
-              style={styles.ctaFinal}
-              onPress={handleDownloadApp}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={["#10b981", "#059669"]}
-                style={styles.ctaFinalGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Ionicons name="rocket" size={28} color="#fff" />
-                <Text style={styles.ctaFinalText}>PRENESI ZDAJ</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.finalCtaLoginLink}
-              onPress={handleLogin}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.finalCtaLoginText}>
-                Že imaš račun? <Text style={styles.finalCtaLoginHighlight}>Prijavi se →</Text>
-              </Text>
+      {/* STICKY HEADER (Appears on scroll) */}
+      <AnimatedBlurView intensity={50} tint="dark" style={[styles.stickyHeader, stickyHeaderStyle]}>
+        <SafeAreaView edges={['top']} style={styles.stickyContent}>
+          <View style={styles.stickyInner}>
+            <Text style={styles.stickyTitle}>Pr'Hran</Text>
+            <TouchableOpacity onPress={handleAction} style={styles.stickyBtn}>
+              <Text style={styles.stickyBtnText}>Začni Zastonj</Text>
             </TouchableOpacity>
           </View>
+        </SafeAreaView>
+      </AnimatedBlurView>
 
-          <View style={{ height: 60 }} />
-        </ScrollView>
+      {/* SCROLL CONTENT */}
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-        {/* Sticky Mobile CTA - 70% of traffic is mobile! */}
-        {Platform.OS !== "web" && (
-          <Animated.View
-            style={[
-              styles.stickyCTA,
-              {
-                transform: [
-                  {
-                    translateY: stickyCtaAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [100, 0],
-                    }),
-                  },
-                ],
-                opacity: stickyCtaAnim,
-              },
-            ]}
-            pointerEvents={showStickyCTA ? "auto" : "none"}
-          >
-            <BlurView intensity={40} tint="dark" style={styles.stickyCTABlur}>
+          {/* 1. HERO SECTION */}
+          <Animated.View style={[styles.heroSection, heroStyle]}>
+            {/* Live Badge */}
+            <View style={styles.liveBadgeWrapper}>
+              <BlurView intensity={30} tint="dark" style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>V ŽIVO | <Text style={styles.liveCount}>2,847</Text> Slovencev varčuje</Text>
+              </BlurView>
+            </View>
+
+            <Text style={styles.heroTitle}>
+              Nakupuj Pametno.{"\n"}
+              <Text style={styles.heroTitleGradient}>Prihrani Takoj.</Text>
+            </Text>
+
+            <Text style={styles.heroSubtitle}>
+              Prva slovenska AI aplikacija za primerjavo cen živil.{"\n"}
+              Ne meči denarja stran v napačni trgovini.
+            </Text>
+
+            <View style={styles.heroButtons}>
               <TouchableOpacity
-                style={styles.stickyCTAButton}
-                onPress={handleDownloadApp}
-                activeOpacity={0.9}
+                onPress={handleAction}
+                activeOpacity={0.8}
+                style={styles.heroMainBtn}
               >
                 <LinearGradient
-                  colors={["#10b981", "#059669"]}
-                  style={styles.stickyCTAGradient}
+                  colors={["#a855f7", "#7c3aed"]} // Purple gradient like ExamAi
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroMainBtnGradient}
                 >
-                  <Text style={styles.stickyCTAText}>PRENESI APLIKACIJO</Text>
-                  <Ionicons name="download" size={20} color="#fff" />
+                  <Text style={styles.heroMainBtnText}>Ustvari Račun</Text>
+                  <Ionicons name="arrow-forward" size={24} color="white" />
                 </LinearGradient>
               </TouchableOpacity>
-            </BlurView>
+            </View>
+
+            {/* Platform Badges */}
+            <Text style={styles.platformText}>Kmalu na voljo za iOS in Android</Text>
           </Animated.View>
-        )}
-      </SafeAreaView>
+
+          <View style={styles.spacer} />
+
+          {/* 2. STATS BAR */}
+          <View style={styles.statsRow}>
+            {TRUST_METRICS.map((item, index) => (
+              <View key={index} style={styles.statItem}>
+                <Text style={styles.statValue}>{item.value}</Text>
+                <Text style={styles.statLabel}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.spacerLarge} />
+
+          {/* 3. LOSS AVERSION (Red vs Green) */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Zakaj plačati več?</Text>
+            <Text style={styles.sectionSub}>Ista košarica, ogromna razlika.</Text>
+          </View>
+
+          <View style={styles.comparisonContainer}>
+            {/* The "Bad" Way */}
+            <View style={[styles.compareCard, styles.compareCardBad]}>
+              <View style={styles.compareHeaderBad}>
+                <Ionicons name="close-circle" size={24} color="#ef4444" />
+                <Text style={styles.compareTitleBad}>Naključni Nakup</Text>
+              </View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Mleko 1L</Text><Text style={styles.receiptPrice}>1.49€</Text></View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Testenine</Text><Text style={styles.receiptPrice}>1.29€</Text></View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Tuna</Text><Text style={styles.receiptPrice}>2.89€</Text></View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Kava</Text><Text style={styles.receiptPrice}>6.99€</Text></View>
+              <View style={styles.divider} />
+              <View style={styles.receiptTotal}>
+                <Text style={styles.totalLabel}>Skupaj:</Text>
+                <Text style={styles.totalPriceBad}>12.66€</Text>
+              </View>
+            </View>
+
+            {/* The "Good" Way */}
+            <View style={[styles.compareCard, styles.compareCardGood]}>
+              <View style={styles.compareHeaderGood}>
+                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                <Text style={styles.compareTitleGood}>Pr'Hran Nakup</Text>
+              </View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Mleko 1L</Text><Text style={styles.receiptPrice}>0.99€</Text></View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Testenine</Text><Text style={styles.receiptPrice}>0.89€</Text></View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Tuna</Text><Text style={styles.receiptPrice}>1.99€</Text></View>
+              <View style={styles.receiptLine}><Text style={styles.receiptText}>Kava</Text><Text style={styles.receiptPrice}>4.99€</Text></View>
+              <View style={styles.divider} />
+              <View style={styles.receiptTotal}>
+                <Text style={styles.totalLabel}>Skupaj:</Text>
+                <Text style={styles.totalPriceGood}>8.86€</Text>
+              </View>
+              <View style={styles.savingsTag}>
+                <Text style={styles.savingsText}>Prihranek: 3.80€</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.spacerLarge} />
+
+          {/* 4. PREMIUM TIERS TEASER */}
+          <View style={styles.premiumTeaser}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.1)", "rgba(139, 92, 246, 0.05)"]}
+              style={styles.premiumTeaserGradient}
+            >
+              <View style={styles.premiumBadge}>
+                <Ionicons name="diamond" size={16} color="#fbbf24" />
+                <Text style={styles.premiumBadgeText}>NOVO</Text>
+              </View>
+              <Text style={styles.premiumTitle}>Več kot le prihranki</Text>
+              <Text style={styles.premiumDesc}>
+                Odkrij <Text style={{ color: "#a855f7", fontWeight: "700" }}>Pr'Hran PLUS</Text> za neomejeno iskanje ali{" "}
+                <Text style={{ color: "#f59e0b", fontWeight: "700" }}>Pr'Hran Family</Text> za
+                skupno varčevanje s partnerjem ali družino (do 3 osebe).
+              </Text>
+              <View style={styles.premiumFeaturesRow}>
+                <View style={styles.premFeat}><Ionicons name="infinite" size={16} color="#a855f7" /><Text style={styles.premFeatText}>Neomejeno</Text></View>
+                <View style={styles.premFeat}><Ionicons name="people" size={16} color="#f59e0b" /><Text style={styles.premFeatText}>Družina</Text></View>
+                <View style={styles.premFeat}><Ionicons name="trophy" size={16} color="#22c55e" /><Text style={styles.premFeatText}>Nagrade</Text></View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          <View style={styles.spacerLarge} />
+
+          {/* 5. REVIEWS / SOCIAL PROOF */}
+          <View style={styles.reviewsSection}>
+            <Text style={styles.sectionTitle}>Mnenja Uporabnikov</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reviewsScroll}>
+              {REVIEWS.map((review, i) => (
+                <View key={i} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.avatarPlaceholder}><Text style={styles.avatarText}>{review.name[0]}</Text></View>
+                    <View>
+                      <Text style={styles.reviewName}>{review.name}</Text>
+                      <Text style={styles.reviewRole}>{review.role}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewText}>"{review.text}"</Text>
+                  <View style={styles.starsRow}>
+                    {[...Array(5)].map((_, j) => (
+                      <Ionicons key={j} name="star" size={14} color="#fbbf24" />
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.spacerLarge} />
+
+          {/* 6. BOTTOM CTA */}
+          <View style={styles.bottomCta}>
+            <LinearGradient
+              colors={["#120a21", "#2e1065"]}
+              style={styles.bottomCtaGradient}
+            >
+              <Text style={styles.bottomCtaTitle}>Začni varčevati danes.</Text>
+              <Text style={styles.bottomCtaSub}>Brezplačno. Enostavno. Slovensko.</Text>
+              <TouchableOpacity onPress={handleAction} style={styles.whiteBtn}>
+                <Text style={styles.whiteBtnText}>Začni Zastonj</Text>
+                <Ionicons name="arrow-forward" size={20} color="#120a21" />
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+
+          <View style={{ height: 100 }} />
+
+        </SafeAreaView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -899,124 +400,138 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a0614",
+    backgroundColor: "#050508",
   },
-  safeArea: {
-    flex: 1,
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+    overflow: "hidden",
   },
-  star: {
+  glowOrb: {
     position: "absolute",
-    backgroundColor: "#fff",
-    borderRadius: 999,
-  },
-  floatingIcon: {
-    position: "absolute",
-    zIndex: 0,
-  },
-  iconTopLeft: {
-    top: 60,
-    left: -40,
-  },
-  iconTopRight: {
-    top: 120,
-    right: -30,
-  },
-  iconBottomLeft: {
-    bottom: 200,
-    left: -20,
+    width: SCREEN_WIDTH * 1.5,
+    height: SCREEN_WIDTH * 1.5,
+    borderRadius: SCREEN_WIDTH,
+    top: -SCREEN_WIDTH * 0.5,
+    left: -SCREEN_WIDTH * 0.25,
   },
 
   // NAVBAR
+  navbarSafeArea: {
+    zIndex: 10,
+  },
   navbar: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    zIndex: 10,
+    paddingVertical: 10,
+    height: 60,
   },
   navLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
-  navBrand: {
-    fontSize: 24,
-    fontWeight: "900",
+  navLogoText: {
     color: "#fff",
-    letterSpacing: -0.5,
+    fontWeight: "700",
+    fontSize: 20,
+    letterSpacing: 0.5,
   },
-  navLoginLink: {
+  navRight: {
     flexDirection: "row",
+    gap: 12,
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
   },
-  navLoginText: {
-    color: "#9ca3af",
+  navBtnLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  navBtnLinkText: {
+    color: "#cbd5e1",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  navBtnPrimary: {
+    backgroundColor: "#2e1065",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#4c1d95",
+  },
+  navBtnPrimaryText: {
+    color: "#fff",
     fontSize: 14,
     fontWeight: "600",
   },
 
-  // SCROLL
-  scrollView: {
-    flex: 1,
+  // STICKY HEADER
+  stickyHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 0,
+    zIndex: 100,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
   },
-  scrollContent: {
-    paddingHorizontal: 20,
+  stickyContent: {
+    backgroundColor: "transparent",
+  },
+  stickyInner: {
+    height: 60,
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
+  stickyTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  stickyBtn: {
+    backgroundColor: "#a855f7",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  stickyBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+
+  // SCROLL CONTENT
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  spacer: { height: 40 },
+  spacerLarge: { height: 80 },
 
   // HERO
   heroSection: {
-    width: "100%",
-    maxWidth: 800,
-    paddingVertical: 60,
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 40,
   },
-  heroContent: {
-    alignItems: "center",
-    width: "100%",
-  },
-  heroTitle: {
-    fontSize: 56,
-    fontWeight: "900",
-    color: "#fff",
-    textAlign: "center",
-    lineHeight: 64,
-    letterSpacing: -2,
-    marginBottom: 20,
-  },
-  heroTitleAccent: {
-    color: "#10b981",
-  },
-  heroSubtitle: {
-    fontSize: 20,
-    color: "#9ca3af",
-    textAlign: "center",
-    lineHeight: 32,
-    marginBottom: 32,
-    maxWidth: 600,
-  },
-  liveBadge: {
-    marginBottom: 40,
-    borderRadius: 24,
+  liveBadgeWrapper: {
+    marginBottom: 24,
+    borderRadius: 20,
     overflow: "hidden",
-  },
-  liveBadgeBlur: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
     borderWidth: 1,
     borderColor: "rgba(16, 185, 129, 0.3)",
   },
-  liveIndicator: {
+  liveBadge: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     gap: 8,
+    backgroundColor: "rgba(5, 40, 20, 0.4)",
   },
   liveDot: {
     width: 8,
@@ -1025,642 +540,296 @@ const styles = StyleSheet.create({
     backgroundColor: "#10b981",
   },
   liveText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#10b981",
-  },
-  userAvatars: {
-    flexDirection: "row",
-    marginLeft: -8,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#0a0614",
-    marginLeft: -8,
-  },
-  avatar1: {
-    backgroundColor: "#10b981",
-  },
-  avatar2: {
-    backgroundColor: "#3b82f6",
-  },
-  avatar3: {
-    backgroundColor: "#a855f7",
+    color: "#a7f3d0",
+    fontSize: 13,
+    fontWeight: "500",
   },
   liveCount: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#d1d5db",
-  },
-  ctaPrimary: {
-    borderRadius: 30,
-    overflow: "hidden",
-    width: "100%",
-    maxWidth: 400,
-  },
-  ctaGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    gap: 12,
-  },
-  ctaText: {
-    fontSize: 18,
-    fontWeight: "900",
     color: "#fff",
-    letterSpacing: 0.5,
+    fontWeight: "700",
   },
-  ctaFooter: {
-    marginTop: 16,
-    fontSize: 14,
-    color: "#6b7280",
-    fontStyle: "italic",
-  },
-  heroStats: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 24,
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  heroStat: {
-    alignItems: "center",
-  },
-  heroStatNumber: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#10b981",
-    marginBottom: 4,
-  },
-  heroStatLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    fontWeight: "600",
-  },
-  heroStatDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-  },
-  trustBadges: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    justifyContent: "center",
-    marginTop: 32,
-  },
-  trustBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  trustBadgeText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#d1d5db",
-  },
-
-  // SECTIONS
-  section: {
-    width: "100%",
-    maxWidth: 1000,
-    marginBottom: 80,
-  },
-  sectionTitle: {
-    fontSize: 36,
-    fontWeight: "900",
+  heroTitle: {
+    fontSize: 38,
+    lineHeight: 46,
     color: "#fff",
-    textAlign: "center",
-    marginBottom: 12,
-    letterSpacing: -1,
-  },
-  sectionSubtitle: {
-    fontSize: 18,
-    color: "#9ca3af",
-    textAlign: "center",
-    marginBottom: 40,
-    lineHeight: 28,
-  },
-
-  // PSYCHOLOGY CARD
-  glassCard: {
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  glassCardBlur: {
-    padding: 40,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
-  },
-  psychologyTitle: {
-    fontSize: 28,
     fontWeight: "800",
-    color: "#10b981",
     textAlign: "center",
-    marginTop: 20,
     marginBottom: 16,
   },
-  psychologyText: {
-    fontSize: 18,
-    color: "#d1d5db",
+  heroTitleGradient: {
+    color: "#c084fc", // Fallback
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#94a3b8",
     textAlign: "center",
-    lineHeight: 28,
+    maxWidth: 320,
     marginBottom: 32,
   },
-  psychologyHighlight: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#10b981",
-  },
-  psychologyStats: {
-    flexDirection: "row",
-    gap: 40,
-  },
-  psychologyStat: {
-    alignItems: "center",
-  },
-  psychologyStatValue: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#10b981",
-  },
-  psychologyStatLabel: {
-    fontSize: 14,
-    color: "#9ca3af",
-    marginTop: 4,
-  },
-
-  // PRICE EXAMPLES
-  priceExamples: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 20,
-    justifyContent: "center",
-  },
-  priceCard: {
-    width: SCREEN_WIDTH > 768 ? 300 : "100%",
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  priceCardBlur: {
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
-  },
-  priceProduct: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 20,
-  },
-  priceList: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-  },
-  priceRowBest: {
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
-  },
-  priceStore: {
-    fontSize: 16,
-    color: "#9ca3af",
-    fontWeight: "600",
-    flex: 1,
-  },
-  priceStoreBest: {
-    color: "#10b981",
-    fontWeight: "700",
-  },
-  priceValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#d1d5db",
-    marginRight: 8,
-  },
-  priceValueBest: {
-    fontSize: 20,
-    color: "#10b981",
-    fontWeight: "900",
-  },
-  priceSavings: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-  },
-  priceSavingsText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#10b981",
-  },
-
-  // FEATURES
-  featuresGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 20,
-    justifyContent: "center",
-  },
-  featureCard: {
-    width: SCREEN_WIDTH > 768 ? 220 : (SCREEN_WIDTH - 60) / 2,
-    minWidth: 160,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  featureCardBlur: {
-    padding: 24,
-    alignItems: "center",
-    minHeight: 200,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  featureIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  featureTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-
-  // HOW IT WORKS
-  howItWorks: {
+  heroButtons: {
     width: "100%",
-    maxWidth: 600,
-    alignSelf: "center",
-  },
-  howStep: {
-    marginBottom: 20,
-  },
-  howStepNumber: {
-    borderRadius: 30,
-    overflow: "hidden",
-    alignSelf: "flex-start",
-    marginBottom: 12,
-  },
-  howStepNumberGradient: {
-    width: 60,
-    height: 60,
     alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 24,
   },
-  howStepNumberText: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#fff",
+  heroMainBtn: {
+    width: "100%",
+    maxWidth: 300,
+    borderRadius: 32,
+    shadowColor: "#a855f7",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  howStepContent: {
+  heroMainBtnGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 32,
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
+    justifyContent: "center",
+    gap: 12,
   },
-  howStepText: {
+  heroMainBtnText: {
+    color: "#fff",
     fontSize: 18,
     fontWeight: "700",
-    color: "#fff",
-    flex: 1,
   },
-  howStepConnector: {
-    width: 2,
-    height: 24,
-    backgroundColor: "rgba(16, 185, 129, 0.3)",
-    marginLeft: 30,
-    marginVertical: 8,
+  platformText: {
+    color: "#64748b",
+    fontSize: 12,
+    marginTop: 8,
   },
 
-  // TESTIMONIALS
-  testimonialsGrid: {
+  // STATS
+  statsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 20,
-    justifyContent: "center",
-    marginBottom: 40,
-  },
-  testimonialCard: {
-    width: SCREEN_WIDTH > 768 ? 340 : "100%",
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  testimonialCardBlur: {
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  testimonialHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-  },
-  testimonialAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(16, 185, 129, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(16, 185, 129, 0.4)",
-  },
-  testimonialAvatarText: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#10b981",
-  },
-  testimonialInfo: {
-    flex: 1,
-  },
-  testimonialNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  testimonialName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  testimonialLocation: {
-    fontSize: 12,
-    color: "#9ca3af",
-  },
-  testimonialRating: {
-    flexDirection: "row",
-    gap: 4,
-    marginBottom: 12,
-  },
-  testimonialText: {
-    fontSize: 14,
-    color: "#d1d5db",
-    lineHeight: 22,
-  },
-  ratingOverview: {
+    justifyContent: "space-around",
+    paddingHorizontal: 10,
     width: "100%",
     maxWidth: 500,
     alignSelf: "center",
-    borderRadius: 24,
-    overflow: "hidden",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+    paddingVertical: 20,
+    backgroundColor: "rgba(255,255,255,0.02)",
   },
-  ratingOverviewBlur: {
-    padding: 32,
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.3)",
-  },
-  ratingOverviewContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    gap: 32,
-  },
-  ratingScore: {
+  statItem: {
     alignItems: "center",
   },
-  ratingScoreNumber: {
-    fontSize: 56,
-    fontWeight: "900",
-    color: "#fbbf24",
-    marginBottom: 8,
-  },
-  ratingStars: {
-    flexDirection: "row",
-    gap: 4,
-    marginBottom: 8,
-  },
-  ratingScoreText: {
-    fontSize: 14,
-    color: "#9ca3af",
-  },
-  ratingStats: {
-    alignItems: "center",
-  },
-  ratingStatsNumber: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#10b981",
+  statValue: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
     marginBottom: 4,
   },
-  ratingStatsLabel: {
-    fontSize: 14,
-    color: "#9ca3af",
+  statLabel: {
+    color: "#94a3b8",
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  // SECTIONS
+  sectionHeader: {
+    alignItems: "center",
+    marginBottom: 32,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  sectionSub: {
+    color: "#94a3b8",
+    fontSize: 15,
     textAlign: "center",
   },
 
   // COMPARISON
   comparisonContainer: {
-    flexDirection: SCREEN_WIDTH > 768 ? "row" : "column",
+    flexDirection: SCREEN_WIDTH > 600 ? "row" : "column",
     gap: 20,
+    paddingHorizontal: 20,
+    maxWidth: 800,
+    alignSelf: "center",
     width: "100%",
   },
-  comparisonCard: {
+  compareCard: {
     flex: 1,
+    backgroundColor: "#1e1e24",
     borderRadius: 20,
-    overflow: "hidden",
-  },
-  comparisonCardBlur: {
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  comparisonHeader: {
+  compareCardBad: {
+    backgroundColor: "rgba(239, 68, 68, 0.05)",
+    borderColor: "rgba(239, 68, 68, 0.2)",
+  },
+  compareCardGood: {
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
+    borderColor: "rgba(16, 185, 129, 0.2)",
+    transform: [{ scale: 1.02 }],
+    zIndex: 2,
+    shadowColor: "#10b981",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  },
+  compareHeaderBad: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-  },
-  comparisonHeaderBad: {
     borderBottomColor: "rgba(239, 68, 68, 0.2)",
   },
-  comparisonHeaderGood: {
+  compareTitleBad: { color: "#fca5a5", fontSize: 16, fontWeight: "700" },
+
+  compareHeaderGood: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
     borderBottomColor: "rgba(16, 185, 129, 0.2)",
   },
-  comparisonTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#fff",
-  },
-  comparisonItems: {
-    gap: 16,
-  },
-  comparisonItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  comparisonItemText: {
-    fontSize: 15,
-    color: "#9ca3af",
-    flex: 1,
-  },
-  comparisonItemGood: {
-    color: "#d1d5db",
-    fontWeight: "600",
-  },
+  compareTitleGood: { color: "#6ee7b7", fontSize: 16, fontWeight: "700" },
 
-  // FAQ
-  faqList: {
-    width: "100%",
-    maxWidth: 800,
-    gap: 16,
-  },
-  faqItem: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  faqItemBlur: {
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  faqQuestion: {
+  receiptLine: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    justifyContent: "space-between",
     marginBottom: 12,
   },
-  faqQuestionText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-    flex: 1,
+  receiptText: { color: "#cbd5e1", fontSize: 14 },
+  receiptPrice: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  divider: { height: 1, backgroundColor: "rgba(255,255,255,0.1)", marginVertical: 12 },
+  receiptTotal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
   },
-  faqAnswer: {
-    fontSize: 15,
-    color: "#d1d5db",
-    lineHeight: 24,
-    paddingLeft: 36,
+  totalLabel: { color: "#94a3b8", fontSize: 14 },
+  totalPriceBad: { color: "#ef4444", fontSize: 22, fontWeight: "700" },
+  totalPriceGood: { color: "#10b981", fontSize: 22, fontWeight: "700" },
+  savingsTag: {
+    marginTop: 12,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: "flex-end",
   },
+  savingsText: { color: "#34d399", fontWeight: "700", fontSize: 12 },
 
-  // FINAL CTA
-  finalCta: {
-    width: "100%",
-    maxWidth: 600,
+  // PREMIUM TEASER
+  premiumTeaser: {
+    marginHorizontal: 20,
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+  },
+  premiumTeaserGradient: {
+    padding: 24,
     alignItems: "center",
-    paddingVertical: 60,
   },
-  finalCtaTitle: {
-    fontSize: 40,
-    fontWeight: "900",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 16,
-    letterSpacing: -1,
+  premiumBadge: {
+    flexDirection: "row",
+    gap: 6,
+    backgroundColor: "rgba(251, 191, 36, 0.1)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
   },
-  finalCtaSubtitle: {
-    fontSize: 18,
-    color: "#9ca3af",
-    textAlign: "center",
-    marginBottom: 40,
+  premiumBadgeText: { color: "#fbbf24", fontWeight: "700", fontSize: 10 },
+  premiumTitle: { color: "#fff", fontSize: 22, fontWeight: "700", marginBottom: 8 },
+  premiumDesc: { color: "#cbd5e1", fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 16 },
+  premiumFeaturesRow: { flexDirection: "row", gap: 16, flexWrap: "wrap", justifyContent: "center" },
+  premFeat: { flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: "#0f0a1e", padding: 8, borderRadius: 8 },
+  premFeatText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+
+  // REVIEWS
+  reviewsSection: {},
+  reviewsScroll: {
+    paddingHorizontal: 20,
+    gap: 16,
+    paddingBottom: 20,
   },
-  ctaFinal: {
-    width: "100%",
-    maxWidth: 400,
+  reviewCard: {
+    width: 260,
+    backgroundColor: "#18181b",
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  avatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#3f3f46",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: "#fff", fontWeight: "700" },
+  reviewName: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  reviewRole: { color: "#71717a", fontSize: 12 },
+  reviewText: { color: "#d4d4d8", fontSize: 13, lineHeight: 20, height: 60 },
+  starsRow: { flexDirection: "row", gap: 2, marginTop: 12 },
+
+  // BOTTOM CTA
+  bottomCta: {
+    marginHorizontal: 20,
     borderRadius: 30,
     overflow: "hidden",
-    marginBottom: 24,
   },
-  ctaFinalGradient: {
-    flexDirection: "row",
+  bottomCtaGradient: {
+    padding: 32,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 22,
-    gap: 12,
   },
-  ctaFinalText: {
-    fontSize: 20,
-    fontWeight: "900",
+  bottomCtaTitle: {
     color: "#fff",
-    letterSpacing: 0.5,
+    fontSize: 24,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 8,
   },
-  finalCtaLoginLink: {
-    marginTop: 20,
-  },
-  finalCtaLoginText: {
+  bottomCtaSub: {
+    color: "#c4b5fd",
     fontSize: 14,
-    color: "#9ca3af",
+    marginBottom: 24,
     textAlign: "center",
   },
-  finalCtaLoginHighlight: {
-    color: "#10b981",
-    fontWeight: "700",
-  },
-
-  // STICKY MOBILE CTA (70% traffic is mobile!)
-  stickyCTA: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-  },
-  stickyCTABlur: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    paddingBottom: Platform.OS === "ios" ? 24 : 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-  },
-  stickyCTAButton: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  stickyCTAGradient: {
+  whiteBtn: {
+    backgroundColor: "#fff",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
     gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 30,
   },
-  stickyCTAText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#fff",
-    letterSpacing: 0.5,
+  whiteBtnText: {
+    color: "#120a21",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });

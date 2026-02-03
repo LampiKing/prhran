@@ -46,47 +46,68 @@ def tus_universal_scraper(urls_list):
 
                 for k, product in enumerate(products[:50]):  # prvih 50 za demo
                     try:
-                        # IME
+                        # IME - Robust selector strategy
                         name = ""
-                        for tag in ["h1", "h2", "h3", "h4"]:
-                            name_el = product.query_selector(tag)
-                            if name_el:
-                                name_text = name_el.text_content() or ""
-                                if name_text.strip():
-                                    name = name_text.strip()
-                                    break
+                        # Strategy 1: Specific class selectors (common in TUŠ new layout)
+                        name_el = product.query_selector(".product-name, .item-name, .title")
+                        if name_el:
+                            name = name_el.text_content().strip()
+                        
+                        # Strategy 2: Heading tags fallback
+                        if not name:
+                            for tag in ["h3", "h4", "h5", "div[class*='name']"]:
+                                name_el = product.query_selector(tag)
+                                if name_el:
+                                    name_text = name_el.text_content() or ""
+                                    if len(name_text.strip()) > 3:
+                                        name = name_text.strip()
+                                        break
 
-                        # Če ni imena, poišči v textu
+                        # Strategy 3: Text content heuristic (last resort)
                         if not name:
                             text = product.text_content() or ""
-                            lines = text.split("\n")
-                            for line in lines:
-                                line = line.strip()
-                                if len(line) > 3 and not any(
-                                    char.isdigit() for char in line[:10]
-                                ):
+                            lines = [l.strip() for l in text.split("\n") if len(l.strip()) > 3]
+                            # Assume name is one of the first non-numeric lines
+                            for line in lines[:3]:
+                                if not any(c.isdigit() for c in line[:5]): # Heuristic: name doesn't start with numbers usually
                                     name = line
                                     break
 
-                        # CENE
+                        # CENE - Robust extraction
                         text = product.text_content() or ""
-                        price_numbers = re.findall(r"\d+[\.,]?\d*", text)
-
-                        redna_cena = 0
-                        akcijska_cena = 0
-
-                        if price_numbers:
-                            prices = [float(p.replace(",", ".")) for p in price_numbers]
+                        # Clean price text: replace comma with dot, remove non-price chars but keep price structure
+                        # Look for patterns like "1,99" or "1.99"
+                        price_matches = re.findall(r'(\d+[.,]\d{2})', text)
+                        
+                        redna_cena = 0.0
+                        akcijska_cena = 0.0
+                        
+                        prices = []
+                        for const_p in price_matches:
+                            try:
+                                p_val = float(const_p.replace(",", "."))
+                                prices.append(p_val)
+                            except:
+                                continue
+                        
+                        if prices:
+                            prices = sorted(list(set(prices))) # Remove duplicates, sort
                             if len(prices) >= 2:
-                                redna_cena = max(prices)
-                                akcijska_cena = min(prices)
+                                # Usually usually higher price is regular, lower is action
+                                # But sometimes small numbers are unit prices. Heuristic: Price is usually > 0.1
+                                valid_prices = [p for p in prices if p > 0.1]
+                                if len(valid_prices) >= 2:
+                                     redna_cena = valid_prices[-1]
+                                     akcijska_cena = valid_prices[0]
+                                elif len(valid_prices) == 1:
+                                     redna_cena = valid_prices[0]
                             elif len(prices) == 1:
                                 redna_cena = prices[0]
 
                         # ENOTA
                         unit = ""
                         unit_match = re.search(
-                            r"(\d+)\s*(kg|g|l|ml|kos|kom)", text, re.IGNORECASE
+                            r"(\d+\s*(?:kg|g|l|ml|kos|kom|dag))", text, re.IGNORECASE
                         )
                         if unit_match:
                             unit = unit_match.group(0)
@@ -96,11 +117,19 @@ def tus_universal_scraper(urls_list):
                         slika = ""
                         if img:
                             src = img.get_attribute("src") or ""
-                            if src and not src.startswith("data:"):
-                                if src.startswith("/"):
+                            if src:
+                                if src.startswith("data:"):
+                                    pass # Skip data URIs if possible unless necessary
+                                elif src.startswith("/"):
                                     slika = "https://hitrinakup.com" + src
                                 else:
                                     slika = src
+                            
+                            # Fallback to data-src/lazyload
+                            if not slika:
+                                data_src = img.get_attribute("data-src")
+                                if data_src:
+                                    slika = data_src if data_src.startswith("http") else "https://hitrinakup.com" + data_src
 
                         # Shrani produkt
                         if name and redna_cena > 0:
