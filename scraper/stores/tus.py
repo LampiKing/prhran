@@ -519,6 +519,7 @@ class TusScraper(BulletproofScraper):
                                 name = el.inner_text()
 
                             name = re.sub(r"\s+", " ", name).strip()
+                            # Clean up price if stuck to name
                             name = re.sub(r"\d+[,.]\d{2}\s*€.*", "", name).strip()
 
                             if self.is_valid_name(name):
@@ -527,6 +528,37 @@ class TusScraper(BulletproofScraper):
                                 name = ""
                     except:
                         continue
+
+            # Strategy 2: Heading tags fallback (New Robust Layer)
+            if not name:
+                for tag in ["h3", "h4", "h5", "div[class*='name']"]:
+                    try:
+                        name_el = element.query_selector(tag)
+                        if name_el:
+                            name_text = name_el.inner_text() or ""
+                            if len(name_text.strip()) > 3:
+                                possible_name = name_text.strip()
+                                # Clean up formatting
+                                possible_name = re.sub(r"\s+", " ", possible_name).strip()
+                                if self.is_valid_name(possible_name):
+                                    name = possible_name
+                                    break
+                    except:
+                        continue
+
+            # Strategy 3: Text content heuristic (Last Resort)
+            if not name:
+                try:
+                   text = element.inner_text() or ""
+                   lines = [l.strip() for l in text.split("\n") if len(l.strip()) > 3]
+                   # Assume name is one of the first non-numeric lines
+                   for line in lines[:3]:
+                       if not any(c.isdigit() for c in line[:5]): # Heuristic
+                           if self.is_valid_name(line):
+                               name = line
+                               break
+                except:
+                   pass
 
             if not name:
                 return None
